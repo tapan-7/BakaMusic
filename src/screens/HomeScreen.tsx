@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {FlatList, View, ActivityIndicator} from 'react-native';
+import {FlatList, View, ActivityIndicator, Alert, Linking, Platform} from 'react-native';
 import {ThemedView} from '../components/atoms/ThemedView';
 import {ThemedText} from '../components/atoms/ThemedText';
 import {Button} from '../components/atoms/Button';
@@ -9,6 +9,7 @@ import {useTheme} from '../core/theme/useTheme';
 import {requestMusicPermission} from '../services/PermissionService';
 import {getAllTracks, Track} from '../services/MusicService';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {check, PERMISSIONS, RESULTS} from 'react-native-permissions';
 
 export const HomeScreen = () => {
   const navigation = useNavigation<any>();
@@ -24,13 +25,46 @@ export const HomeScreen = () => {
   const loadMusic = async () => {
     setLoading(true);
     const hasPermission = await requestMusicPermission();
+    console.log("🚀 ~ loadMusic ~ hasPermission:", hasPermission)
     setPermissionGranted(hasPermission);
 
     if (hasPermission) {
       const allTracks = await getAllTracks();
+      console.log("🚀 ~ loadMusic ~ allTracks:", allTracks[0])
       setTracks(allTracks);
     }
     setLoading(false);
+  };
+
+  const handlePermissionRequest = async () => {
+    const hasPermission = await requestMusicPermission();
+
+    // Check if permission was permanently denied
+    let currentPermissionStatus;
+    if (Platform.OS === 'android') {
+      currentPermissionStatus = await check(
+        Number(Platform.Version) >= 33
+          ? PERMISSIONS.ANDROID.READ_MEDIA_AUDIO
+          : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE
+      );
+    } else {
+      currentPermissionStatus = await check(PERMISSIONS.IOS.MEDIA_LIBRARY);
+    }
+
+    if (currentPermissionStatus === RESULTS.DENIED || currentPermissionStatus === RESULTS.BLOCKED) {
+      Alert.alert(
+        'Permission Required',
+        'Baka Music needs access to your music library to play your songs. Please enable the permission in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go to Settings', onPress: () => Linking.openSettings() }
+        ]
+      );
+    } else if (hasPermission) {
+      const allTracks = await getAllTracks();
+      setTracks(allTracks);
+      setPermissionGranted(true);
+    }
   };
 
   const renderItem = ({item}: {item: Track}) => (
@@ -94,7 +128,7 @@ export const HomeScreen = () => {
               color="muted">
               We need permission to access your audio files to play them.
             </ThemedText>
-            <Button title="Grant Permission" onPress={loadMusic} />
+            <Button title="Grant Permission" onPress={handlePermissionRequest} />
           </View>
         ) : (
           <FlatList
@@ -110,7 +144,7 @@ export const HomeScreen = () => {
                 <Button
                   title="Scan Again"
                   variant="ghost"
-                  onPress={loadMusic}
+                  onPress={handlePermissionRequest}
                   style={{marginTop: 20}}
                 />
               </View>

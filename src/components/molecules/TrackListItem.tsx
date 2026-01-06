@@ -27,7 +27,7 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
         style={[styles.artwork, {backgroundColor: colors.surfaceHighlight}]}>
         {track.artwork ? (
           <Image
-            source={{uri: track.artwork}}
+            source={{uri: track.url}}
             style={StyleSheet.absoluteFillObject}
           />
         ) : (
