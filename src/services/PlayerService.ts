@@ -1,140 +1,45 @@
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { AVPlaybackStatus } from 'expo-av';
 import { Track } from './MusicService';
-
-let currentSound: Audio.Sound | null = null;
-let playbackCallback: ((status: AVPlaybackStatus) => void) | null = null;
+import { playerManager } from './PlayerManager';
 
 export const setupPlayer = async () => {
-  try {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: true,
-    });
-    return true;
-  } catch (error) {
-    console.error('Error setting up audio:', error);
-    return false;
-  }
+  return await playerManager.initialize();
 };
 
 export const playTrack = async (track: Track) => {
-  try {
-    // Unload previous sound if exists
-    if (currentSound) {
-      await currentSound.unloadAsync();
-      currentSound = null;
-    }
-
-    // Create and load new sound
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: track.url },
-      { shouldPlay: true },
-      onPlaybackStatusUpdate
-    );
-
-    currentSound = sound;
-    await sound.playAsync();
-  } catch (error) {
-    console.error('Error playing track:', error);
-  }
+  return await playerManager.playTrack(track);
 };
 
 export const pauseTrack = async () => {
-  try {
-    if (currentSound) {
-      await currentSound.pauseAsync();
-    }
-  } catch (error) {
-    console.error('Error pausing track:', error);
-  }
+  return await playerManager.pauseTrack();
 };
 
 export const resumeTrack = async () => {
-  try {
-    if (currentSound) {
-      await currentSound.playAsync();
-    }
-  } catch (error) {
-    console.error('Error resuming track:', error);
-  }
+  return await playerManager.resumeTrack();
 };
 
 export const stopTrack = async () => {
-  try {
-    if (currentSound) {
-      await currentSound.stopAsync();
-      await currentSound.unloadAsync();
-      currentSound = null;
-    }
-  } catch (error) {
-    console.error('Error stopping track:', error);
-  }
+  return await playerManager.stopTrack();
 };
 
 export const getCurrentTrackPosition = async () => {
-  try {
-    if (currentSound) {
-      const status = await currentSound.getStatusAsync();
-      if (status.isLoaded) {
-        return {
-          position: status.positionMillis / 1000,
-          duration: status.durationMillis ? status.durationMillis / 1000 : 0,
-          isPlaying: status.isPlaying,
-        };
-      }
-    }
-    return {
-      position: 0,
-      duration: 0,
-      isPlaying: false,
-    };
-  } catch (error) {
-    console.error('Error getting track position:', error);
-    return {
-      position: 0,
-      duration: 0,
-      isPlaying: false,
-    };
-  }
+  return await playerManager.getCurrentTrackPosition();
 };
 
 export const seekToPosition = async (positionSec: number) => {
-  try {
-    if (currentSound) {
-      await currentSound.setPositionAsync(positionSec * 1000);
-    }
-  } catch (error) {
-    console.error('Error seeking to position:', error);
-  }
+  return await playerManager.seekToPosition(positionSec);
 };
 
-const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-  if (playbackCallback) {
-    playbackCallback(status);
-  }
-
-  if (status.isLoaded) {
-    if (status.didJustFinish) {
-      console.log('Track finished playing');
-      // You can implement queue logic here
-    }
-  } else if (status.error) {
-    console.error('Playback error:', status.error);
-  }
+export const setOnTrackFinishCallback = (callback: () => void) => {
+  playerManager.setOnTrackFinishCallback(callback);
 };
 
 // Set callback for playback updates
 export const setPlaybackCallback = (callback: (status: AVPlaybackStatus) => void) => {
-  playbackCallback = callback;
+  playerManager.setPlaybackCallback(callback);
 };
 
 // Cleanup function
 export const cleanupPlayer = async () => {
-  if (currentSound) {
-    await currentSound.unloadAsync();
-    currentSound = null;
-  }
-  playbackCallback = null;
+  return await playerManager.cleanup();
 };

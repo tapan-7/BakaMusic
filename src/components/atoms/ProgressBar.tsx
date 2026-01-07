@@ -10,21 +10,28 @@ import {useTheme} from '../../core/theme/useTheme';
 
 interface ProgressBarProps {
   progress: number; // 0 to 1
+  isSeeking?: boolean;
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({progress}) => {
+export const ProgressBar: React.FC<ProgressBarProps> = ({
+  progress,
+  isSeeking,
+}) => {
   const {colors} = useTheme();
   const width = useSharedValue(0);
   const AnimatedView = Animated.View as any;
 
   useEffect(() => {
-    // Clamp progress between 0 and 1
-    const clampled = Math.min(Math.max(progress, 0), 1);
-    width.value = withTiming(clampled, {
-      duration: 500,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
-  }, [progress]);
+    const clamped = Math.min(Math.max(progress, 0), 1);
+    if (isSeeking) {
+      width.value = clamped;
+    } else {
+      width.value = withTiming(clamped, {
+        duration: 500,
+        easing: Easing.linear,
+      });
+    }
+  }, [progress, isSeeking, width]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {

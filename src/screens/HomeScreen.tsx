@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {FlatList, View, ActivityIndicator, Alert, Linking, Platform} from 'react-native';
+import {FlatList, View, ActivityIndicator, Alert, Linking, Platform, Image} from 'react-native';
 import {ThemedView} from '../components/atoms/ThemedView';
 import {ThemedText} from '../components/atoms/ThemedText';
 import {Button} from '../components/atoms/Button';
@@ -10,6 +10,8 @@ import {requestMusicPermission} from '../services/PermissionService';
 import {getAllTracks, Track} from '../services/MusicService';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {check, PERMISSIONS, RESULTS} from 'react-native-permissions';
+import {usePlayback} from '../hooks/usePlayback';
+import {usePlayer} from '../contexts/PlayerContext';
 
 export const HomeScreen = () => {
   const navigation = useNavigation<any>();
@@ -70,9 +72,69 @@ export const HomeScreen = () => {
   const renderItem = ({item}: {item: Track}) => (
     <TrackListItem
       track={item}
-      onPress={() => navigation.navigate('Player', {track: item})}
+      onPress={() => {
+        // When a new track is selected, make sure to update the player context
+        // and navigate to the player screen
+        navigation.navigate('Player', {track: item});
+      }}
     />
   );
+
+  // Mini player component to show currently playing track
+  const {currentTrack: playingTrack} = usePlayer();
+  const {isPlaying: isCurrentlyPlaying, togglePlayback} = usePlayback();
+
+  const MiniPlayer = () => {
+    if (!playingTrack) return null; // Only hide if there's no track
+
+    return (
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 12,
+          backgroundColor: colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        }}
+      >
+        {playingTrack.artwork ? (
+          <Image
+            source={{uri: playingTrack.artwork}}
+            style={{width: 50, height: 50, borderRadius: 8, marginRight: 12}}
+          />
+        ) : (
+          <View style={{width: 50, height: 50, borderRadius: 8, marginRight: 12, backgroundColor: colors.surfaceHighlight, alignItems: 'center', justifyContent: 'center'}}>
+            <ThemedText variant="header" color="muted">♪</ThemedText>
+          </View>
+        )}
+        <View style={{flex: 1, marginRight: 12}}>
+          <ThemedText variant="caption" numberOfLines={1}>
+            {playingTrack.title}
+          </ThemedText>
+          <ThemedText variant="caption" color="muted" numberOfLines={1}>
+            {playingTrack.artist}
+          </ThemedText>
+        </View>
+        <Button
+          title={isCurrentlyPlaying ? '⏸' : '▶'}
+          variant="ghost"
+          onPress={togglePlayback}
+          style={{paddingHorizontal: 12}}
+        />
+        <Button
+          title="▶▶"
+          variant="ghost"
+          onPress={() => navigation.navigate('Player', {track: playingTrack})}
+          style={{paddingHorizontal: 12}}
+        />
+      </View>
+    );
+  };
 
   return (
     <ThemedView style={{flex: 1}}>
@@ -151,6 +213,7 @@ export const HomeScreen = () => {
             }
           />
         )}
+        <MiniPlayer />
       </SafeAreaView>
     </ThemedView>
   );

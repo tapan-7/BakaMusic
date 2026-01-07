@@ -1,13 +1,24 @@
-import React, {useEffect} from 'react';
-import {View, Image, StyleSheet} from 'react-native';
+import React, {useEffect, useState, useCallback} from 'react';
+import {View, Image, StyleSheet, PanResponder, Dimensions} from 'react-native';
 import {ThemedView} from '../components/atoms/ThemedView';
 import {ThemedText} from '../components/atoms/ThemedText';
 import {ProgressBar} from '../components/atoms/ProgressBar';
 import {Button} from '../components/atoms/Button';
 import {useNavigation, useRoute} from '@react-navigation/native';
-import {playTrack, setupPlayer} from '../services/PlayerService';
+import {
+  playTrack,
+  setupPlayer,
+  seekToPosition,
+  setOnTrackFinishCallback,
+  stopTrack,
+} from '../services/PlayerService';
+import {playerManager} from '../services/PlayerManager';
 import {useTheme} from '../core/theme/useTheme';
 import {usePlayback} from '../hooks/usePlayback';
+import {getAllTracks, Track} from '../services/MusicService';
+import {usePlayer} from '../contexts/PlayerContext';
+
+const {width} = Dimensions.get('window');
 
 export const PlayerScreen = () => {
   const navigation = useNavigation();
@@ -15,16 +26,65 @@ export const PlayerScreen = () => {
   const {track} = route.params || {};
   const {position, duration, isPlaying, togglePlayback} = usePlayback();
   const {colors} = useTheme();
+  const [allTracks, setAllTracks] = useState<Track[]>([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
+  const {setCurrentTrack, setIsPlaying} = usePlayer();
 
+  // Effect for player setup and track loading
   useEffect(() => {
     const init = async () => {
       const isSetup = await setupPlayer();
       if (isSetup && track) {
-        await playTrack(track);
+        setCurrentTrack(track);
+
+        const currentTrackId = await playerManager.getCurrentTrackId();
+        if (currentTrackId !== track.id) {
+          await playTrack(track);
+          setIsPlaying(true);
+        }
       }
+
+      const tracks = await getAllTracks();
+      setAllTracks(tracks);
+
+      const index = tracks.findIndex(t => t.id === track.id);
+      setCurrentTrackIndex(index !== -1 ? index : 0);
     };
     init();
-  }, [track]);
+  }, [track, setCurrentTrack, setIsPlaying]);
+
+  // Effect for cleaning up player on unmount
+  useEffect(() => {
+    return () => {
+      stopTrack();
+    };
+  }, []);
+
+  const handleNext = useCallback(async () => {
+    if (allTracks.length > 0) {
+      const nextIndex =
+        currentTrackIndex < allTracks.length - 1 ? currentTrackIndex + 1 : 0;
+      const nextTrack = allTracks[nextIndex];
+      setCurrentTrack(nextTrack);
+      setCurrentTrackIndex(nextIndex);
+      await playTrack(nextTrack);
+      setIsPlaying(true);
+    }
+  }, [allTracks, currentTrackIndex, setCurrentTrack, setIsPlaying]);
+
+  // Effect for track finish callback
+  useEffect(() => {
+    setOnTrackFinishCallback(() => {
+      if (repeatMode === 'one') {
+        if (track) {
+          playTrack(track);
+        }
+      } else if (repeatMode === 'all') {
+        handleNext();
+      }
+    });
+  }, [repeatMode, track, handleNext]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -32,7 +92,49 @@ export const PlayerScreen = () => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState(0);
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (evt, gestureState) => {
+      setIsSeeking(true);
+      updateSeekPosition(gestureState.x0);
+    },
+    onPanResponderMove: (evt, gestureState) => {
+      updateSeekPosition(gestureState.moveX);
+    },
+    onPanResponderRelease: () => {
+      if (duration > 0) {
+        const newPosition = seekPosition * duration;
+        seekToPosition(newPosition);
+      }
+      setIsSeeking(false);
+    },
+  });
+
+  const updateSeekPosition = (x: number) => {
+    const progress = Math.max(0, Math.min(1, x / width));
+    setSeekPosition(progress);
+  };
+
+  const handlePrev = useCallback(async () => {
+    if (allTracks.length > 0) {
+      const prevIndex =
+        currentTrackIndex > 0 ? currentTrackIndex - 1 : allTracks.length - 1;
+      const prevTrack = allTracks[prevIndex];
+      setCurrentTrack(prevTrack);
+      setCurrentTrackIndex(prevIndex);
+      await playTrack(prevTrack);
+      setIsPlaying(true);
+    }
+  }, [allTracks, currentTrackIndex, setCurrentTrack, setIsPlaying]);
+
   if (!track) return null;
+
+  const displayPosition = isSeeking ? seekPosition * duration : position;
+  const displayProgress = duration > 0 ? displayPosition / duration : 0;
 
   return (
     <ThemedView variant="surface" style={styles.container}>
@@ -62,14 +164,17 @@ export const PlayerScreen = () => {
       </View>
 
       <View style={styles.progressContainer}>
-        <ProgressBar
-          progress={
-            duration > 0 ? position / duration : 0
-          }
-        />
+        <View
+          style={styles.progressBarContainer}
+          {...panResponder.panHandlers}>
+                    <ProgressBar
+                      progress={displayProgress}
+                      isSeeking={isSeeking}
+                    />
+        </View>
         <View style={styles.timeContainer}>
           <ThemedText variant="caption">
-            {formatTime(position)}
+            {formatTime(displayPosition)}
           </ThemedText>
           <ThemedText variant="caption">
             {formatTime(duration)}
@@ -78,14 +183,30 @@ export const PlayerScreen = () => {
       </View>
 
       <View style={styles.controls}>
-        <Button title="Prev" variant="ghost" onPress={() => {}} />
         <Button
-          title={isPlaying ? '||' : '▶'}
+          title={
+            repeatMode === 'off' ? '🔁' : repeatMode === 'one' ? '🔂' : '🔁'
+          }
+          variant="ghost"
+          onPress={() => {
+            if (repeatMode === 'off') {
+              setRepeatMode('one');
+            } else if (repeatMode === 'one') {
+              setRepeatMode('all');
+            } else {
+              setRepeatMode('off');
+            }
+          }}
+        />
+        <Button title="⏮" variant="ghost" onPress={handlePrev} />
+        <Button
+          title={isPlaying ? '⏸' : '▶'}
           variant="primary"
           style={styles.playButton}
           onPress={togglePlayback}
         />
-        <Button title="Next" variant="ghost" onPress={() => {}} />
+        <Button title="⏭" variant="ghost" onPress={handleNext} />
+        <Button title="_shuffle" variant="ghost" onPress={() => {}} />
       </View>
 
       <Button
@@ -136,6 +257,9 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     marginBottom: 48,
+  },
+  progressBarContainer: {
+    width: '100%',
   },
   timeContainer: {
     flexDirection: 'row',
