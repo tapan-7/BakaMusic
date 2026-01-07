@@ -14,7 +14,6 @@ import {
 } from '../services/PlayerService';
 import {playerManager} from '../services/PlayerManager';
 import {useTheme} from '../core/theme/useTheme';
-import {usePlayback} from '../hooks/usePlayback';
 import {getAllTracks, Track} from '../services/MusicService';
 import {usePlayer} from '../contexts/PlayerContext';
 
@@ -23,55 +22,51 @@ const {width} = Dimensions.get('window');
 export const PlayerScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
-  const {track} = route.params || {};
-  const {position, duration, isPlaying, togglePlayback} = usePlayback();
+  const {track: trackFromParams} = route.params || {};
+  const {
+    currentTrack: track,
+    playNewTrack,
+    isPlaying,
+    togglePlayback,
+    position,
+    duration,
+    seek,
+  } = usePlayer();
   const {colors} = useTheme();
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
-  const {setCurrentTrack, setIsPlaying} = usePlayer();
 
-  // Effect for player setup and track loading
   useEffect(() => {
     const init = async () => {
-      const isSetup = await setupPlayer();
-      if (isSetup && track) {
-        setCurrentTrack(track);
-
-        const currentTrackId = await playerManager.getCurrentTrackId();
-        if (currentTrackId !== track.id) {
-          await playTrack(track);
-          setIsPlaying(true);
-        }
-      }
-
+      await setupPlayer();
       const tracks = await getAllTracks();
       setAllTracks(tracks);
-
-      const index = tracks.findIndex(t => t.id === track.id);
-      setCurrentTrackIndex(index !== -1 ? index : 0);
     };
     init();
-  }, [track, setCurrentTrack, setIsPlaying]);
-
-  // Effect for cleaning up player on unmount
-  useEffect(() => {
-    return () => {
-      stopTrack();
-    };
   }, []);
+
+  useEffect(() => {
+    if (track) {
+      const index = allTracks.findIndex(t => t.id === track.id);
+      setCurrentTrackIndex(index !== -1 ? index : 0);
+    }
+  }, [track, allTracks]);
+
+  useEffect(() => {
+    if (trackFromParams && trackFromParams.id !== track?.id) {
+      playNewTrack(trackFromParams);
+    }
+  }, [trackFromParams, track, playNewTrack]);
 
   const handleNext = useCallback(async () => {
     if (allTracks.length > 0) {
       const nextIndex =
         currentTrackIndex < allTracks.length - 1 ? currentTrackIndex + 1 : 0;
       const nextTrack = allTracks[nextIndex];
-      setCurrentTrack(nextTrack);
-      setCurrentTrackIndex(nextIndex);
-      await playTrack(nextTrack);
-      setIsPlaying(true);
+      playNewTrack(nextTrack);
     }
-  }, [allTracks, currentTrackIndex, setCurrentTrack, setIsPlaying]);
+  }, [allTracks, currentTrackIndex, playNewTrack]);
 
   // Effect for track finish callback
   useEffect(() => {
@@ -80,7 +75,7 @@ export const PlayerScreen = () => {
         if (track) {
           playTrack(track);
         }
-      } else if (repeatMode === 'all') {
+      } else {
         handleNext();
       }
     });
@@ -108,7 +103,7 @@ export const PlayerScreen = () => {
     onPanResponderRelease: () => {
       if (duration > 0) {
         const newPosition = seekPosition * duration;
-        seekToPosition(newPosition);
+        seek(newPosition);
       }
       setIsSeeking(false);
     },
@@ -124,12 +119,9 @@ export const PlayerScreen = () => {
       const prevIndex =
         currentTrackIndex > 0 ? currentTrackIndex - 1 : allTracks.length - 1;
       const prevTrack = allTracks[prevIndex];
-      setCurrentTrack(prevTrack);
-      setCurrentTrackIndex(prevIndex);
-      await playTrack(prevTrack);
-      setIsPlaying(true);
+      playNewTrack(prevTrack);
     }
-  }, [allTracks, currentTrackIndex, setCurrentTrack, setIsPlaying]);
+  }, [allTracks, currentTrackIndex, playNewTrack]);
 
   if (!track) return null;
 

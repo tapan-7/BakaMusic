@@ -1,38 +1,55 @@
-import React, {useEffect, useState} from 'react';
-import {FlatList, View, ActivityIndicator, Alert, Linking, Platform, Image} from 'react-native';
-import {ThemedView} from '../components/atoms/ThemedView';
-import {ThemedText} from '../components/atoms/ThemedText';
-import {Button} from '../components/atoms/Button';
-import {TrackListItem} from '../components/molecules/TrackListItem';
-import {useNavigation} from '@react-navigation/native';
-import {useTheme} from '../core/theme/useTheme';
-import {requestMusicPermission} from '../services/PermissionService';
-import {getAllTracks, Track} from '../services/MusicService';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {check, PERMISSIONS, RESULTS} from 'react-native-permissions';
-import {usePlayback} from '../hooks/usePlayback';
-import {usePlayer} from '../contexts/PlayerContext';
+import React, { useEffect, useState } from 'react';
+import {
+  FlatList,
+  View,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
+  Image,
+  TouchableOpacity,
+} from 'react-native';
+import { ThemedView } from '../components/atoms/ThemedView';
+import { ThemedText } from '../components/atoms/ThemedText';
+import { Button } from '../components/atoms/Button';
+import { TrackListItem } from '../components/molecules/TrackListItem';
+import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../core/theme/useTheme';
+import { requestMusicPermission } from '../services/PermissionService';
+import { getAllTracks, Track } from '../services/MusicService';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { check, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import { usePlayer } from '../contexts/PlayerContext';
+import { setupPlayer } from '../services/PlayerService';
 
 export const HomeScreen = () => {
   const navigation = useNavigation<any>();
-  const {toggleTheme, colors, isDark} = useTheme();
+  const { toggleTheme, colors, isDark } = useTheme();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const {
+    currentTrack: playingTrack,
+    playNewTrack,
+    isPlaying: isCurrentlyPlaying,
+    togglePlayback,
+  } = usePlayer();
 
   useEffect(() => {
-    loadMusic();
+    const initialize = async () => {
+      await setupPlayer();
+      loadMusic();
+    };
+    initialize();
   }, []);
 
   const loadMusic = async () => {
     setLoading(true);
     const hasPermission = await requestMusicPermission();
-    console.log("🚀 ~ loadMusic ~ hasPermission:", hasPermission)
     setPermissionGranted(hasPermission);
 
     if (hasPermission) {
       const allTracks = await getAllTracks();
-      console.log("🚀 ~ loadMusic ~ allTracks:", allTracks[0])
       setTracks(allTracks);
     }
     setLoading(false);
@@ -41,26 +58,28 @@ export const HomeScreen = () => {
   const handlePermissionRequest = async () => {
     const hasPermission = await requestMusicPermission();
 
-    // Check if permission was permanently denied
     let currentPermissionStatus;
     if (Platform.OS === 'android') {
       currentPermissionStatus = await check(
         Number(Platform.Version) >= 33
           ? PERMISSIONS.ANDROID.READ_MEDIA_AUDIO
-          : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE
+          : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
       );
     } else {
       currentPermissionStatus = await check(PERMISSIONS.IOS.MEDIA_LIBRARY);
     }
 
-    if (currentPermissionStatus === RESULTS.DENIED || currentPermissionStatus === RESULTS.BLOCKED) {
+    if (
+      currentPermissionStatus === RESULTS.DENIED ||
+      currentPermissionStatus === RESULTS.BLOCKED
+    ) {
       Alert.alert(
         'Permission Required',
         'Baka Music needs access to your music library to play your songs. Please enable the permission in Settings.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Go to Settings', onPress: () => Linking.openSettings() }
-        ]
+          { text: 'Go to Settings', onPress: () => Linking.openSettings() },
+        ],
       );
     } else if (hasPermission) {
       const allTracks = await getAllTracks();
@@ -69,26 +88,23 @@ export const HomeScreen = () => {
     }
   };
 
-  const renderItem = ({item}: {item: Track}) => (
+  const renderItem = ({ item }: { item: Track }) => (
     <TrackListItem
       track={item}
       onPress={() => {
-        // When a new track is selected, make sure to update the player context
-        // and navigate to the player screen
-        navigation.navigate('Player', {track: item});
+        playNewTrack(item);
+        navigation.navigate('Player');
       }}
     />
   );
 
-  // Mini player component to show currently playing track
-  const {currentTrack: playingTrack} = usePlayer();
-  const {isPlaying: isCurrentlyPlaying, togglePlayback} = usePlayback();
-
   const MiniPlayer = () => {
-    if (!playingTrack) return null; // Only hide if there's no track
+    if (!playingTrack) return null;
 
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={() => navigation.navigate('Player')}
         style={{
           position: 'absolute',
           bottom: 0,
@@ -104,15 +120,27 @@ export const HomeScreen = () => {
       >
         {playingTrack.artwork ? (
           <Image
-            source={{uri: playingTrack.artwork}}
-            style={{width: 50, height: 50, borderRadius: 8, marginRight: 12}}
+            source={{ uri: playingTrack.artwork }}
+            style={{ width: 50, height: 50, borderRadius: 8, marginRight: 12 }}
           />
         ) : (
-          <View style={{width: 50, height: 50, borderRadius: 8, marginRight: 12, backgroundColor: colors.surfaceHighlight, alignItems: 'center', justifyContent: 'center'}}>
-            <ThemedText variant="header" color="muted">♪</ThemedText>
+          <View
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 8,
+              marginRight: 12,
+              backgroundColor: colors.surfaceHighlight,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ThemedText variant="header" color="muted">
+              ♪
+            </ThemedText>
           </View>
         )}
-        <View style={{flex: 1, marginRight: 12}}>
+        <View style={{ flex: 1, marginRight: 12 }}>
           <ThemedText variant="caption" numberOfLines={1}>
             {playingTrack.title}
           </ThemedText>
@@ -124,36 +152,32 @@ export const HomeScreen = () => {
           title={isCurrentlyPlaying ? '⏸' : '▶'}
           variant="ghost"
           onPress={togglePlayback}
-          style={{paddingHorizontal: 12}}
+          style={{ paddingHorizontal: 12 }}
         />
-        <Button
-          title="▶▶"
-          variant="ghost"
-          onPress={() => navigation.navigate('Player', {track: playingTrack})}
-          style={{paddingHorizontal: 12}}
-        />
-      </View>
+      </TouchableOpacity>
     );
   };
 
   return (
-    <ThemedView style={{flex: 1}}>
-      <SafeAreaView style={{flex: 1}} edges={['top']}>
+    <ThemedView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <View
           style={{
             paddingHorizontal: 24,
             paddingVertical: 24,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
-          }}>
+          }}
+        >
           <View
             style={{
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
-            }}>
+            }}
+          >
             <View>
-              <ThemedText variant="header" style={{marginBottom: 4}}>
+              <ThemedText variant="header" style={{ marginBottom: 4 }}>
                 My Library
               </ThemedText>
               <ThemedText variant="caption" color="muted">
@@ -164,16 +188,17 @@ export const HomeScreen = () => {
               title={isDark ? 'Light' : 'Dark'}
               variant="ghost"
               onPress={toggleTheme}
-              style={{minWidth: 60}}
+              style={{ minWidth: 60 }}
             />
           </View>
         </View>
 
         {loading ? (
           <View
-            style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
             <ActivityIndicator color={colors.primary} size="large" />
-            <ThemedText style={{marginTop: 16}} color="muted">
+            <ThemedText style={{ marginTop: 16 }} color="muted">
               Finding your music...
             </ThemedText>
           </View>
@@ -184,22 +209,27 @@ export const HomeScreen = () => {
               alignItems: 'center',
               justifyContent: 'center',
               padding: 32,
-            }}>
+            }}
+          >
             <ThemedText
-              style={{textAlign: 'center', marginBottom: 16}}
-              color="muted">
+              style={{ textAlign: 'center', marginBottom: 16 }}
+              color="muted"
+            >
               We need permission to access your audio files to play them.
             </ThemedText>
-            <Button title="Grant Permission" onPress={handlePermissionRequest} />
+            <Button
+              title="Grant Permission"
+              onPress={handlePermissionRequest}
+            />
           </View>
         ) : (
           <FlatList
             data={tracks}
             renderItem={renderItem}
             keyExtractor={item => item.id}
-            contentContainerStyle={{paddingBottom: 100}}
+            contentContainerStyle={{ paddingBottom: 100 }}
             ListEmptyComponent={
-              <View style={{padding: 40, alignItems: 'center'}}>
+              <View style={{ padding: 40, alignItems: 'center' }}>
                 <ThemedText color="muted">
                   No music found on this device.
                 </ThemedText>
@@ -207,7 +237,7 @@ export const HomeScreen = () => {
                   title="Scan Again"
                   variant="ghost"
                   onPress={handlePermissionRequest}
-                  style={{marginTop: 20}}
+                  style={{ marginTop: 20 }}
                 />
               </View>
             }

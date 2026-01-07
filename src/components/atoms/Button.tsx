@@ -11,7 +11,7 @@ import {useTheme} from '../../core/theme/useTheme';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
@@ -41,6 +41,10 @@ export const Button: React.FC<ButtonProps> = ({
   } else if (variant === 'ghost') {
     backgroundColor = 'transparent';
     textColor = disabled ? 'muted' : 'primary';
+  } else if (variant === 'outline') {
+    backgroundColor = 'transparent';
+    borderColor = colors.border;
+    textColor = disabled ? 'muted' : 'primary';
   }
 
   return (
@@ -52,8 +56,9 @@ export const Button: React.FC<ButtonProps> = ({
         {
           backgroundColor,
           borderColor,
-          borderWidth: variant === 'secondary' ? 1 : 0,
-          paddingVertical: spacing.m + 4, // Make it a bit taller
+          borderWidth: variant === 'secondary' || variant === 'outline' ? 1 : 0,
+          borderRadius: variant === 'outline' ? 50 : 12,
+          paddingVertical: spacing.m + 4, 
           paddingHorizontal: spacing.l,
         },
         disabled && styles.disabled,
@@ -78,7 +83,6 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 100,
