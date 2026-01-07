@@ -223,13 +223,13 @@ export const HomeScreen = () => {
               </ThemedText>
             </View>
             <View style={{flexDirection: 'row', gap: -10}}>
-              <Button
+              {/* <Button
                 title={<Icon name={'refresh'} size={20} />}
                 variant="ghost"
                 onPress={handleRescan}
                 disabled={isRescanning}
                 style={{padding: 12, borderRadius: 50}}
-              />
+              /> */}
               <Button
                 title={<Icon name={'contrast'} size={20} />}
                 variant="ghost"
