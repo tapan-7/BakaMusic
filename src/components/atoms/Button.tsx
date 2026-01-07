@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
 } from 'react-native';
-import {ThemedText} from './ThemedText';
-import {useTheme} from '../../core/theme/useTheme';
+import { ThemedText } from './ThemedText';
+import { useTheme } from '../../core/theme/useTheme';
 
 interface ButtonProps {
-  title: string;
+  title: string | React.ReactNode;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   disabled?: boolean;
@@ -25,7 +25,8 @@ export const Button: React.FC<ButtonProps> = ({
   loading = false,
   style,
 }) => {
-  const {colors, spacing} = useTheme();
+  const { colors, spacing } = useTheme();
+  const [isPressed, setIsPressed] = useState(false);
 
   let backgroundColor = 'transparent';
   let textColor: any = 'primary';
@@ -39,7 +40,7 @@ export const Button: React.FC<ButtonProps> = ({
     borderColor = colors.border;
     textColor = disabled ? 'muted' : 'primary';
   } else if (variant === 'ghost') {
-    backgroundColor = 'transparent';
+    backgroundColor = isPressed ? colors.surfaceHighlight : 'transparent';
     textColor = disabled ? 'muted' : 'primary';
   } else if (variant === 'outline') {
     backgroundColor = 'transparent';
@@ -50,6 +51,8 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <TouchableOpacity
       onPress={onPress}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
       disabled={disabled || loading}
       style={[
         styles.container,
@@ -57,14 +60,14 @@ export const Button: React.FC<ButtonProps> = ({
           backgroundColor,
           borderColor,
           borderWidth: variant === 'secondary' || variant === 'outline' ? 1 : 0,
-          borderRadius: variant === 'outline' ? 50 : 12,
-          paddingVertical: variant === 'outline' ? spacing.s : spacing.m,
-          paddingHorizontal: spacing.l,
+          borderRadius: 50,
+          padding: 12,
         },
         disabled && styles.disabled,
         style,
       ]}
-      activeOpacity={0.7}>
+      activeOpacity={0.7}
+    >
       {loading ? (
         <ActivityIndicator
           color={textColor === 'inverse' ? colors.background : colors.primary}
@@ -73,7 +76,8 @@ export const Button: React.FC<ButtonProps> = ({
         <ThemedText
           variant="subheader"
           color={textColor}
-          style={{fontWeight: '600', fontSize: 16}}>
+          style={{ fontWeight: '600', fontSize: 16 }}
+        >
           {title}
         </ThemedText>
       )}
