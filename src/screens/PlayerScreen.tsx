@@ -198,14 +198,14 @@ export const PlayerScreen = () => {
           onPress={togglePlayback}
         />
         <Button title="⏭" variant="ghost" onPress={handleNext} />
-        <Button title="_shuffle" variant="ghost" onPress={() => {}} />
+        <Button title="🔀" variant="ghost" onPress={() => {}} />
       </View>
 
       <Button
         title="Back"
-        variant="ghost"
+        variant="outline"
         onPress={() => navigation.goBack()}
-        style={{marginTop: 40}}
+        style={{marginTop: 40, alignSelf: 'center'}}
       />
     </ThemedView>
   );
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 32,
+    gap: 10,
   },
   playButton: {
     width: 72,

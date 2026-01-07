@@ -58,7 +58,7 @@ export const Button: React.FC<ButtonProps> = ({
           borderColor,
           borderWidth: variant === 'secondary' || variant === 'outline' ? 1 : 0,
           borderRadius: variant === 'outline' ? 50 : 12,
-          paddingVertical: spacing.m + 4, 
+          paddingVertical: variant === 'outline' ? spacing.s : spacing.m,
           paddingHorizontal: spacing.l,
         },
         disabled && styles.disabled,
@@ -85,7 +85,6 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 100,
   },
   disabled: {
     opacity: 0.8,
