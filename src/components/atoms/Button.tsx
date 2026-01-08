@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  TouchableOpacity,
+  TouchableHighlight,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
 } from 'react-native';
-import { ThemedText } from './ThemedText';
-import { useTheme } from '../../core/theme/useTheme';
+import {ThemedText} from './ThemedText';
+import {useTheme} from '../../core/theme/useTheme';
 
 interface ButtonProps {
   title: string | React.ReactNode;
@@ -25,8 +25,7 @@ export const Button: React.FC<ButtonProps> = ({
   loading = false,
   style,
 }) => {
-  const { colors, spacing } = useTheme();
-  const [isPressed, setIsPressed] = useState(false);
+  const {colors} = useTheme();
 
   let backgroundColor = 'transparent';
   let textColor: any = 'primary';
@@ -40,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
     borderColor = colors.border;
     textColor = disabled ? 'muted' : 'primary';
   } else if (variant === 'ghost') {
-    backgroundColor = isPressed ? colors.surfaceHighlight : 'transparent';
+    backgroundColor = 'transparent';
     textColor = disabled ? 'muted' : 'primary';
   } else if (variant === 'outline') {
     backgroundColor = 'transparent';
@@ -49,10 +48,8 @@ export const Button: React.FC<ButtonProps> = ({
   }
 
   return (
-    <TouchableOpacity
+    <TouchableHighlight
       onPress={onPress}
-      onPressIn={() => setIsPressed(true)}
-      onPressOut={() => setIsPressed(false)}
       disabled={disabled || loading}
       style={[
         styles.container,
@@ -66,8 +63,7 @@ export const Button: React.FC<ButtonProps> = ({
         disabled && styles.disabled,
         style,
       ]}
-      activeOpacity={0.7}
-    >
+      underlayColor={colors.surfaceHighlight}>
       {loading ? (
         <ActivityIndicator
           color={textColor === 'inverse' ? colors.background : colors.primary}
@@ -76,12 +72,11 @@ export const Button: React.FC<ButtonProps> = ({
         <ThemedText
           variant="subheader"
           color={textColor}
-          style={{ fontWeight: '600', fontSize: 16 }}
-        >
+          style={{fontWeight: '600', fontSize: 16}}>
           {title}
         </ThemedText>
       )}
-    </TouchableOpacity>
+    </TouchableHighlight>
   );
 };
 
@@ -94,3 +89,4 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
+
