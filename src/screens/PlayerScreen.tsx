@@ -33,13 +33,16 @@ export const PlayerScreen = () => {
     playNewTrack,
     isPlaying,
     togglePlayback,
-    seek,
+    startSeeking,
+    stopSeeking,
+    isSeeking,
   } = usePlayer();
   const { position, duration } = usePlayerProgress();
   const { colors } = useTheme();
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
+  const [dragProgress, setDragProgress] = useState(0);
 
   useEffect(() => {
     const init = async () => {
@@ -91,32 +94,29 @@ export const PlayerScreen = () => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const [isSeeking, setIsSeeking] = useState(false);
-  const [seekPosition, setSeekPosition] = useState(0);
+  const calculateProgress = (x: number) => {
+    const componentX = x - 24;
+    const componentWidth = width - 48;
+    return Math.max(0, Math.min(1, componentX / componentWidth));
+  };
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt, gestureState) => {
-      setIsSeeking(true);
-      updateSeekPosition(gestureState.x0);
+      startSeeking();
+      const progress = calculateProgress(gestureState.x0);
+      setDragProgress(progress);
     },
     onPanResponderMove: (evt, gestureState) => {
-      updateSeekPosition(gestureState.moveX);
+      const progress = calculateProgress(gestureState.moveX);
+      setDragProgress(progress);
     },
     onPanResponderRelease: () => {
-      if (duration > 0) {
-        const newPosition = seekPosition * duration;
-        seek(newPosition);
-      }
-      setIsSeeking(false);
+      const newPosition = dragProgress * duration;
+      stopSeeking(newPosition);
     },
   });
-
-  const updateSeekPosition = (x: number) => {
-    const progress = Math.max(0, Math.min(1, x / width));
-    setSeekPosition(progress);
-  };
 
   const handlePrev = useCallback(async () => {
     if (allTracks.length > 0) {
@@ -129,7 +129,7 @@ export const PlayerScreen = () => {
 
   if (!track) return null;
 
-  const displayPosition = isSeeking ? seekPosition * duration : position;
+  const displayPosition = isSeeking ? dragProgress * duration : position;
   const displayProgress = duration > 0 ? displayPosition / duration : 0;
 
   return (
@@ -280,6 +280,7 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     width: '100%',
+    paddingVertical: 10,
   },
   timeContainer: {
     flexDirection: 'row',

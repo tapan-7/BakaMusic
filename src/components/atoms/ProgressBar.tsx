@@ -1,15 +1,15 @@
-import React, {useEffect} from 'react';
-import {View, StyleSheet} from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import {useTheme} from '../../core/theme/useTheme';
+import { useTheme } from '../../core/theme/useTheme';
 
 interface ProgressBarProps {
-  progress: number; // 0 to 1
+  progress: number;
   isSeeking?: boolean;
 }
 
@@ -17,7 +17,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   progress,
   isSeeking,
 }) => {
-  const {colors} = useTheme();
+  const { colors } = useTheme();
   const width = useSharedValue(0);
   const AnimatedView = Animated.View as any;
 
@@ -39,11 +39,30 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     };
   });
 
+  const animatedThumbStyle = useAnimatedStyle(() => {
+    return {
+      left: `${width.value * 100}%`,
+      transform: [{ scale: withTiming(isSeeking ? 1.5 : 1) }],
+    };
+  });
+
   return (
     <View
-      style={[styles.container, {backgroundColor: colors.surfaceHighlight}]}>
+      style={[styles.container, { backgroundColor: colors.surfaceHighlight }]}
+    >
       <AnimatedView
-        style={[styles.fill, {backgroundColor: colors.primary}, animatedStyle]}
+        style={[
+          styles.fill,
+          { backgroundColor: colors.primary },
+          animatedStyle,
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.thumb,
+          { backgroundColor: colors.primary },
+          animatedThumbStyle,
+        ]}
       />
     </View>
   );
@@ -54,10 +73,18 @@ const styles = StyleSheet.create({
     height: 6,
     width: '100%',
     borderRadius: 3,
-    overflow: 'hidden',
+    justifyContent: 'center',
+    overflow: 'visible',
   },
   fill: {
     height: '100%',
     borderRadius: 3,
+  },
+  thumb: {
+    position: 'absolute',
+    height: 12,
+    width: 12,
+    borderRadius: 6,
+    marginLeft: -6,
   },
 });
