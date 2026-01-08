@@ -33,8 +33,9 @@ export const HomeScreen = () => {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [permissionGranted, setPermissionGranted] = useState(false);
-  const [isRescanning, setIsRescanning] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<
+    'unknown' | 'granted' | 'denied'
+  >('unknown');
 
   const {
     currentTrack: playingTrack,
@@ -44,18 +45,31 @@ export const HomeScreen = () => {
   } = usePlayer();
 
   useEffect(() => {
+    const checkInitialPermission = async () => {
+      const permission =
+        Platform.OS === 'android'
+          ? Number(Platform.Version) >= 33
+            ? PERMISSIONS.ANDROID.READ_MEDIA_AUDIO
+            : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE
+          : PERMISSIONS.IOS.MEDIA_LIBRARY;
+      const status = await check(permission);
+      if (status === RESULTS.GRANTED) {
+        setPermissionStatus('granted');
+        loadMusic();
+      } else {
+        setPermissionStatus('denied');
+        setLoading(false);
+      }
+    };
+
     const initialize = async () => {
       await setupPlayer();
-      await handlePermissionRequest(true); // Check permission on initial load
+      checkInitialPermission();
     };
     initialize();
   }, []);
 
   const loadMusic = async (forceRescan = false) => {
-    if (!permissionGranted) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     const {tracks: initialTracks, total} = await getTracks({
       limit: PAGE_SIZE,
@@ -82,13 +96,13 @@ export const HomeScreen = () => {
     setLoadingMore(false);
   };
 
-  const handlePermissionRequest = async (isInitialLoad = false) => {
+  const handlePermissionRequest = async () => {
     const hasPermission = await requestMusicPermission();
-    setPermissionGranted(hasPermission);
-
     if (hasPermission) {
+      setPermissionStatus('granted');
       loadMusic();
-    } else if (!isInitialLoad) {
+    } else {
+      setPermissionStatus('denied');
       const permission =
         Platform.OS === 'android'
           ? Number(Platform.Version) >= 33
@@ -107,16 +121,13 @@ export const HomeScreen = () => {
         );
       }
     }
-    if (isInitialLoad && !hasPermission) {
-      setLoading(false);
-    }
   };
 
   const handleRescan = async () => {
-    setIsRescanning(true);
+    setLoading(true);
     await rescanLibrary();
     await loadMusic(true);
-    setIsRescanning(false);
+    setLoading(false);
   };
 
   const renderItem = useCallback(
@@ -217,19 +228,11 @@ export const HomeScreen = () => {
                 My Library
               </ThemedText>
               <ThemedText variant="caption" color="muted">
-                {loading || isRescanning
-                  ? 'Scanning...'
-                  : `${totalTracks} tracks`}
+                {loading ? 'Scanning...' : `${totalTracks} tracks`}
               </ThemedText>
             </View>
             <View style={{flexDirection: 'row', gap: -10}}>
-              {/* <Button
-                title={<Icon name={'refresh'} size={20} />}
-                variant="ghost"
-                onPress={handleRescan}
-                disabled={isRescanning}
-                style={{padding: 12, borderRadius: 50}}
-              /> */}
+
               <Button
                 title={<Icon name={'contrast'} size={20} />}
                 variant="ghost"
@@ -240,15 +243,15 @@ export const HomeScreen = () => {
           </View>
         </View>
 
-        {loading || isRescanning ? (
+        {loading ? (
           <View
             style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
             <ActivityIndicator color={colors.primary} size="large" />
             <ThemedText style={{marginTop: 16}} color="muted">
-              {isRescanning ? 'Rescanning library...' : 'Finding your music...'}
+              Finding your music...
             </ThemedText>
           </View>
-        ) : !permissionGranted ? (
+        ) : permissionStatus === 'denied' ? (
           <View
             style={{
               flex: 1,
@@ -263,7 +266,7 @@ export const HomeScreen = () => {
             </ThemedText>
             <Button
               title="Grant Permission"
-              onPress={() => handlePermissionRequest()}
+              onPress={handlePermissionRequest}
             />
           </View>
         ) : (
