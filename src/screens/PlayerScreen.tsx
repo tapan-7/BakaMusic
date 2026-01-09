@@ -215,9 +215,9 @@ export const PlayerScreen = () => {
         <Button
           title={
             isPlaying ? (
-              <Icon name="pause" size={20} color={'#fff'} />
+              <Icon name="pause" size={20} color={colors.background} />
             ) : (
-              <Icon name="play-arrow" size={20} color={'#fff'} />
+              <Icon name="play-arrow" size={20} color={colors.background} />
             )
           }
           variant="primary"

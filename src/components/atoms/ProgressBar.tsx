@@ -53,14 +53,14 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       <AnimatedView
         style={[
           styles.fill,
-          { backgroundColor: colors.primary },
+          { backgroundColor: colors.foreground },
           animatedStyle,
         ]}
       />
       <Animated.View
         style={[
           styles.thumb,
-          { backgroundColor: colors.primary },
+          { backgroundColor: colors.foreground },
           animatedThumbStyle,
         ]}
       />

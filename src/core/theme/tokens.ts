@@ -1,6 +1,7 @@
 export interface ThemeColors {
   primary: string;
   background: string;
+  foreground: string;
   surface: string;
   surfaceHighlight: string;
   text: string;
@@ -36,6 +37,7 @@ export const palette = {
 
 export const lightTheme: Omit<ThemeColors, 'primary'> = {
   background: palette.white,
+  foreground: palette.black,
   surface: palette.gray50,
   surfaceHighlight: palette.gray100,
   text: palette.gray900,
@@ -47,6 +49,7 @@ export const lightTheme: Omit<ThemeColors, 'primary'> = {
 
 export const darkTheme: Omit<ThemeColors, 'primary'> = {
   background: palette.black,
+  foreground: palette.white,
   surface: palette.gray900,
   surfaceHighlight: palette.gray800,
   text: palette.white,

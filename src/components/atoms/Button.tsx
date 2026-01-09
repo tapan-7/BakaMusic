@@ -5,8 +5,8 @@ import {
   ActivityIndicator,
   ViewStyle,
 } from 'react-native';
-import {ThemedText} from './ThemedText';
-import {useTheme} from '../../core/theme/useTheme';
+import { ThemedText } from './ThemedText';
+import { useTheme } from '../../core/theme/useTheme';
 
 interface ButtonProps {
   title: string | React.ReactNode;
@@ -25,14 +25,14 @@ export const Button: React.FC<ButtonProps> = ({
   loading = false,
   style,
 }) => {
-  const {colors} = useTheme();
+  const { colors } = useTheme();
 
   let backgroundColor = 'transparent';
   let textColor: any = 'primary';
   let borderColor = 'transparent';
 
   if (variant === 'primary') {
-    backgroundColor = disabled ? colors.surfaceHighlight : colors.primary;
+    backgroundColor = disabled ? colors.surfaceHighlight : colors.foreground;
     textColor = disabled ? 'muted' : 'inverse';
   } else if (variant === 'secondary') {
     backgroundColor = 'transparent';
@@ -63,7 +63,8 @@ export const Button: React.FC<ButtonProps> = ({
         disabled && styles.disabled,
         style,
       ]}
-      underlayColor={colors.surfaceHighlight}>
+      underlayColor={colors.surfaceHighlight}
+    >
       {loading ? (
         <ActivityIndicator
           color={textColor === 'inverse' ? colors.background : colors.primary}
@@ -72,7 +73,8 @@ export const Button: React.FC<ButtonProps> = ({
         <ThemedText
           variant="subheader"
           color={textColor}
-          style={{fontWeight: '600', fontSize: 16}}>
+          style={{ fontWeight: '600', fontSize: 16 }}
+        >
           {title}
         </ThemedText>
       )}
@@ -89,4 +91,3 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
-
