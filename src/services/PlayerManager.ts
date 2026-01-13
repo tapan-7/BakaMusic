@@ -1,10 +1,10 @@
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { createAudioPlayer, AudioPlayer, AudioStatus, setAudioModeAsync } from 'expo-audio';
 import { Track } from '../services/MusicService';
 
 class PlayerManager {
-  private currentSound: Audio.Sound | null = null;
+  private currentSound: AudioPlayer | null = null;
   private currentTrackId: string | null = null;
-  private playbackCallback: ((status: AVPlaybackStatus) => void) | null = null;
+  private playbackCallback: ((status: AudioStatus) => void) | null = null;
   private onTrackFinishCallback: (() => void) | null = null;
   private isInitialized = false;
   private isPlayingTrack = false; // Flag to prevent race conditions
@@ -12,11 +12,10 @@ class PlayerManager {
   async initialize() {
     if (!this.isInitialized) {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-          shouldDuckAndroid: true,
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          shouldPlayInBackground: true,
+          interruptionMode: 'duckOthers',
         });
         this.isInitialized = true;
         return true;
@@ -40,22 +39,21 @@ class PlayerManager {
     try {
       // If this is the same track that's currently playing, just resume
       if (this.currentTrackId === track.id && this.currentSound) {
-        const status = await this.currentSound.getStatusAsync();
-        if (status.isLoaded) {
-          if (!status.isPlaying) {
+        if (this.currentSound.currentStatus.isLoaded) {
+          if (!this.currentSound.playing) {
             // Track is loaded but paused, so play it
-            await this.currentSound.playAsync();
+            this.currentSound.play();
           }
           // If it's already playing, do nothing
           return;
         }
       }
 
-      // If a different track is currently playing, unload it first
+      // If a different track is currently playing, remove it first
       if (this.currentSound && this.currentTrackId !== track.id) {
         try {
-          await this.currentSound.stopAsync();
-          await this.currentSound.unloadAsync();
+          this.currentSound.pause();
+          this.currentSound.remove();
         } catch (unloadError) {
           console.error('Error unloading previous track:', unloadError);
         }
@@ -64,15 +62,16 @@ class PlayerManager {
       }
 
       // Create and load new sound
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: track.url },
-        { shouldPlay: true },
-        this.onPlaybackStatusUpdate.bind(this)
-      );
+      const player = createAudioPlayer(track.url);
+      
+      player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+        this.onPlaybackStatusUpdate(status);
+      });
 
-      this.currentSound = sound;
+      player.play();
+
+      this.currentSound = player;
       this.currentTrackId = track.id;
-      // Don't call playAsync again since shouldPlay: true is already set above
     } catch (error) {
       console.error('Error playing track:', error);
     } finally {
@@ -83,7 +82,7 @@ class PlayerManager {
   async pauseTrack() {
     try {
       if (this.currentSound) {
-        await this.currentSound.pauseAsync();
+        this.currentSound.pause();
       }
     } catch (error) {
       console.error('Error pausing track:', error);
@@ -93,7 +92,7 @@ class PlayerManager {
   async resumeTrack() {
     try {
       if (this.currentSound) {
-        await this.currentSound.playAsync();
+        this.currentSound.play();
       }
     } catch (error) {
       console.error('Error resuming track:', error);
@@ -103,8 +102,8 @@ class PlayerManager {
   async stopTrack() {
     try {
       if (this.currentSound) {
-        await this.currentSound.stopAsync();
-        await this.currentSound.unloadAsync();
+        this.currentSound.pause();
+        this.currentSound.remove();
         this.currentSound = null;
         this.currentTrackId = null;
       }
@@ -121,12 +120,12 @@ class PlayerManager {
   async getCurrentTrackPosition() {
     try {
       if (this.currentSound) {
-        const status = await this.currentSound.getStatusAsync();
-        if (status.isLoaded) {
+        const { currentTime, duration, playing, isLoaded } = this.currentSound.currentStatus;
+        if (isLoaded) {
           return {
-            position: status.positionMillis / 1000,
-            duration: status.durationMillis ? status.durationMillis / 1000 : 0,
-            isPlaying: status.isPlaying,
+            position: currentTime,
+            duration: duration || 0,
+            isPlaying: playing,
           };
         }
       }
@@ -140,7 +139,7 @@ class PlayerManager {
       // Reset current sound if there's an error
       if (this.currentSound) {
         try {
-          await this.currentSound.unloadAsync();
+          this.currentSound.remove();
         } catch (unloadError) {
           console.error('Error unloading sound after error:', unloadError);
         }
@@ -158,7 +157,7 @@ class PlayerManager {
   async seekToPosition(positionSec: number) {
     try {
       if (this.currentSound) {
-        await this.currentSound.setPositionAsync(positionSec * 1000);
+        await this.currentSound.seekTo(positionSec);
       }
     } catch (error) {
       console.error('Error seeking to position:', error);
@@ -169,7 +168,7 @@ class PlayerManager {
     this.onTrackFinishCallback = callback;
   }
 
-  private onPlaybackStatusUpdate(status: AVPlaybackStatus) {
+  private onPlaybackStatusUpdate(status: AudioStatus) {
     if (this.playbackCallback) {
       this.playbackCallback(status);
     }
@@ -185,23 +184,18 @@ class PlayerManager {
           this.onTrackFinishCallback();
         }
       }
-    } else if (status.error) {
-      console.error('Playback error:', status.error);
-      // Clear the current sound reference on error
-      this.currentSound = null;
-      this.currentTrackId = null;
     }
   }
 
-  setPlaybackCallback(callback: (status: AVPlaybackStatus) => void) {
+  setPlaybackCallback(callback: (status: AudioStatus) => void) {
     this.playbackCallback = callback;
   }
 
   async cleanup() {
     if (this.currentSound) {
       try {
-        await this.currentSound.stopAsync();
-        await this.currentSound.unloadAsync();
+        this.currentSound.pause();
+        this.currentSound.remove();
       } catch (error) {
         console.error('Error during cleanup:', error);
       }
@@ -223,8 +217,7 @@ class PlayerManager {
     }
 
     try {
-      const status = await this.currentSound.getStatusAsync();
-      return status.isLoaded && status.isPlaying;
+      return this.currentSound.playing;
     } catch (error) {
       console.error('Error checking if track is playing:', error);
       return false;

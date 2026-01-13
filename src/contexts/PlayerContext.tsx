@@ -6,7 +6,7 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
-import { AVPlaybackStatus } from 'expo-av';
+import { AudioStatus } from 'expo-audio';
 import { Track } from '../services/MusicService';
 import {
   setPlaybackCallback,
@@ -45,17 +45,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [isSeeking, setIsSeeking] = useState(false);
 
   useEffect(() => {
-    const playbackCallback = (status: AVPlaybackStatus) => {
+    const playbackCallback = (status: AudioStatus) => {
       if (status.isLoaded) {
-        setIsPlaying(status.isPlaying);
+        setIsPlaying(status.playing);
         if (!isSeeking) {
-          setPosition(status.positionMillis / 1000);
+          setPosition(status.currentTime);
         }
-        setDuration(status.durationMillis ? status.durationMillis / 1000 : 0);
+        setDuration(status.duration || 0);
       } else {
-        if (status.error) {
-          console.error('Playback error:', status.error);
-        }
         setIsPlaying(false);
         setPosition(0);
         setDuration(0);

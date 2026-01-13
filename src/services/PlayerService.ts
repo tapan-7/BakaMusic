@@ -1,4 +1,4 @@
-import { AVPlaybackStatus } from 'expo-av';
+import { AudioStatus } from 'expo-audio';
 import { Track } from './MusicService';
 import { playerManager } from './PlayerManager';
 
@@ -35,7 +35,7 @@ export const setOnTrackFinishCallback = (callback: () => void) => {
 };
 
 // Set callback for playback updates
-export const setPlaybackCallback = (callback: (status: AVPlaybackStatus) => void) => {
+export const setPlaybackCallback = (callback: (status: AudioStatus) => void) => {
   playerManager.setPlaybackCallback(callback);
 };
 
