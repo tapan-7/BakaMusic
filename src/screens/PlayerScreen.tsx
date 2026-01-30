@@ -42,7 +42,8 @@ export const PlayerScreen = () => {
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
-  const [dragProgress, setDragProgress] = useState(0);
+  const [dragProgress, setDragProgress] = useState<number | null>(null);
+  const [progressBarWidth, setProgressBarWidth] = useState(0);
 
   useEffect(() => {
     const init = async () => {
@@ -95,26 +96,30 @@ export const PlayerScreen = () => {
   };
 
   const calculateProgress = (x: number) => {
-    const componentX = x - 24;
-    const componentWidth = width - 48;
-    return Math.max(0, Math.min(1, componentX / componentWidth));
+    if (progressBarWidth === 0) return 0;
+    return Math.max(0, Math.min(1, x / progressBarWidth));
   };
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt, gestureState) => {
-      startSeeking();
-      const progress = calculateProgress(gestureState.x0);
+      const progress = calculateProgress(evt.nativeEvent.locationX);
       setDragProgress(progress);
+      startSeeking();
     },
     onPanResponderMove: (evt, gestureState) => {
-      const progress = calculateProgress(gestureState.moveX);
+      const progress = calculateProgress(evt.nativeEvent.locationX);
       setDragProgress(progress);
     },
-    onPanResponderRelease: () => {
-      const newPosition = dragProgress * duration;
+    onPanResponderRelease: (evt, gestureState) => {
+      const finalProgress = calculateProgress(evt.nativeEvent.locationX);
+      const newPosition = finalProgress * duration;
       stopSeeking(newPosition);
+      // Clear drag progress after a small delay to allow UI to update properly
+      setTimeout(() => {
+        setDragProgress(null);
+      }, 50); // Small delay to prevent flickering
     },
   });
 
@@ -129,8 +134,14 @@ export const PlayerScreen = () => {
 
   if (!track) return null;
 
-  const displayPosition = isSeeking ? dragProgress * duration : position;
-  const displayProgress = duration > 0 ? displayPosition / duration : 0;
+  const displayPosition = React.useMemo(() => {
+    // During seeking, use the dragged progress; otherwise use the actual player position
+    return isSeeking && dragProgress !== null ? dragProgress * duration : position;
+  }, [isSeeking, dragProgress, duration, position]);
+
+  const displayProgress = React.useMemo(() => {
+    return duration > 0 ? displayPosition / duration : 0;
+  }, [displayPosition, duration]);
 
   return (
     <ThemedView variant="surface" style={styles.container}>
@@ -174,8 +185,14 @@ export const PlayerScreen = () => {
       </View>
 
       <View style={styles.progressContainer}>
-        <View style={styles.progressBarContainer} {...panResponder.panHandlers}>
-          <ProgressBar progress={displayProgress} isSeeking={isSeeking} />
+        <View
+          style={styles.progressBarContainer}
+          onLayout={e => setProgressBarWidth(e.nativeEvent.layout.width)}
+          {...panResponder.panHandlers}
+        >
+          <View pointerEvents="none" style={{ width: '100%' }}>
+            <ProgressBar progress={displayProgress} isSeeking={isSeeking} />
+          </View>
         </View>
         <View style={styles.timeContainer}>
           <ThemedText variant="caption">

@@ -22,15 +22,11 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   const AnimatedView = Animated.View as any;
 
   useEffect(() => {
-    const clamped = Math.min(Math.max(progress, 0), 1);
-    if (isSeeking) {
-      width.value = clamped;
-    } else {
-      width.value = withTiming(clamped, {
-        duration: 500,
-        easing: Easing.linear,
-      });
-    }
+    // Animate the width to the new progress value
+    width.value = withTiming(Math.min(Math.max(progress, 0), 1), {
+      duration: isSeeking ? 0 : 200, // Instant update during seeking, smooth otherwise
+      easing: Easing.out(Easing.quad),
+    });
   }, [progress, isSeeking, width]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -42,7 +38,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   const animatedThumbStyle = useAnimatedStyle(() => {
     return {
       left: `${width.value * 100}%`,
-      transform: [{ scale: withTiming(isSeeking ? 1.5 : 1) }],
+      transform: [{ scale: isSeeking ? 1.5 : 1 }],
     };
   });
 

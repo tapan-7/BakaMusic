@@ -1,10 +1,9 @@
 import React, {
   createContext,
   useContext,
-  useState,
-  ReactNode,
   useEffect,
   useCallback,
+  ReactNode,
 } from 'react';
 import { AudioStatus } from 'expo-audio';
 import { Track } from '../services/MusicService';
@@ -13,9 +12,17 @@ import {
   pauseTrack,
   resumeTrack,
   playTrack,
-  getCurrentTrackPosition,
   seekToPosition,
 } from '../services/PlayerService';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../store';
+import {
+  setTrack,
+  setPlaying,
+  updateProgress,
+  startSeeking as startSeekingAction,
+  finishSeeking as finishSeekingAction,
+} from '../store/playerSlice';
 
 interface PlayerContextType {
   currentTrack: Track | null;
@@ -38,24 +45,24 @@ const PlayerProgressContext = createContext<
 >(undefined);
 
 export const PlayerProvider = ({ children }: { children: ReactNode }) => {
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isSeeking, setIsSeeking] = useState(false);
+  const dispatch = useDispatch();
+  const { currentTrack, isPlaying, position, duration, isSeeking } =
+    useSelector((state: RootState) => state.player);
 
   useEffect(() => {
     const playbackCallback = (status: AudioStatus) => {
       if (status.isLoaded) {
-        setIsPlaying(status.playing);
-        if (!isSeeking) {
-          setPosition(status.currentTime);
-        }
-        setDuration(status.duration || 0);
+        // Update progress with current time and duration
+        dispatch(
+          updateProgress({
+            position: status.currentTime,
+            duration: status.duration || 0,
+          }),
+        );
+        dispatch(setPlaying(status.playing));
       } else {
-        setIsPlaying(false);
-        setPosition(0);
-        setDuration(0);
+        dispatch(setPlaying(false));
+        dispatch(updateProgress({ position: 0, duration: 0 }));
       }
     };
 
@@ -64,12 +71,15 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       setPlaybackCallback(() => {});
     };
-  }, [isSeeking]);
+  }, [dispatch]);
 
-  const playNewTrack = useCallback(async (track: Track) => {
-    setCurrentTrack(track);
-    await playTrack(track);
-  }, []);
+  const playNewTrack = useCallback(
+    async (track: Track) => {
+      dispatch(setTrack(track));
+      await playTrack(track);
+    },
+    [dispatch],
+  );
 
   const togglePlayback = useCallback(async () => {
     if (isPlaying) {
@@ -80,15 +90,20 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   }, [isPlaying]);
 
   const startSeeking = useCallback(() => {
-    setIsSeeking(true);
-  }, []);
+    dispatch(startSeekingAction());
+  }, [dispatch]);
 
-  const stopSeeking = useCallback(async (newPosition: number) => {
-    await seekToPosition(newPosition);
-    setIsSeeking(false);
-    const status = await getCurrentTrackPosition();
-    setPosition(status.position);
-  }, []);
+  const stopSeeking = useCallback(
+    async (newPosition: number) => {
+      // Update the position in the store immediately to prevent UI flickering
+      // We'll use the current duration from the state
+      dispatch(updateProgress({ position: newPosition, duration }));
+      await seekToPosition(newPosition);
+      // Finish seeking after the seek operation completes
+      dispatch(finishSeekingAction(newPosition));
+    },
+    [dispatch, duration],
+  );
 
   return (
     <PlayerContext.Provider

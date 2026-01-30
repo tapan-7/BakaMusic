@@ -1,4 +1,9 @@
-import { createAudioPlayer, AudioPlayer, AudioStatus, setAudioModeAsync } from 'expo-audio';
+import {
+  createAudioPlayer,
+  AudioPlayer,
+  AudioStatus,
+  setAudioModeAsync,
+} from 'expo-audio';
 import { Track } from '../services/MusicService';
 
 class PlayerManager {
@@ -30,7 +35,9 @@ class PlayerManager {
   async playTrack(track: Track) {
     // Prevent multiple simultaneous playTrack calls
     if (this.isPlayingTrack) {
-      console.log('PlayTrack called while another track is being played, skipping...');
+      console.log(
+        'PlayTrack called while another track is being played, skipping...',
+      );
       return;
     }
 
@@ -63,9 +70,9 @@ class PlayerManager {
 
       // Create and load new sound
       const player = createAudioPlayer(track.url);
-      
+
       player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
-        this.onPlaybackStatusUpdate(status);
+        this.onPlaybackStatusUpdate(player, status);
       });
 
       player.play();
@@ -120,7 +127,8 @@ class PlayerManager {
   async getCurrentTrackPosition() {
     try {
       if (this.currentSound) {
-        const { currentTime, duration, playing, isLoaded } = this.currentSound.currentStatus;
+        const { currentTime, duration, playing, isLoaded } =
+          this.currentSound.currentStatus;
         if (isLoaded) {
           return {
             position: currentTime,
@@ -168,17 +176,26 @@ class PlayerManager {
     this.onTrackFinishCallback = callback;
   }
 
-  private onPlaybackStatusUpdate(status: AudioStatus) {
-    if (this.playbackCallback) {
+  private onPlaybackStatusUpdate(player: AudioPlayer, status: AudioStatus) {
+    if (this.playbackCallback && this.currentSound === player) {
       this.playbackCallback(status);
     }
 
     if (status.isLoaded) {
       if (status.didJustFinish) {
         console.log('Track finished playing');
-        // Clear the current sound reference when track finishes
-        this.currentSound = null;
-        this.currentTrackId = null;
+        // Properly cleanup the finished player
+        try {
+          player.remove();
+        } catch (error) {
+          console.error('Error removing player after finish:', error);
+        }
+
+        if (this.currentSound === player) {
+          this.currentSound = null;
+          this.currentTrackId = null;
+        }
+
         // Call the callback when track finishes
         if (this.onTrackFinishCallback) {
           this.onTrackFinishCallback();
