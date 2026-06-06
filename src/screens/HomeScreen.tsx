@@ -8,6 +8,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Search, Settings, Play } from 'lucide-react-native';
 import { usePlayer } from '../hooks/usePlayer';
 import { ScannedTrack } from '../services/musicScannerService';
@@ -25,13 +26,14 @@ const DEFAULT_ARTWORK =
   'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop';
 
 export const HomeScreen = () => {
+  const navigation = useNavigation<any>();
   const { playTrack } = usePlayer();
   const {
     scannedTracks: tracks,
     isScanning: isLoading,
     loadLocalMusic,
   } = useMusicStore();
-  console.log('🚀 ~ HomeScreen ~ tracks:', tracks);
+  console.log('🚀 ~ HomeScreen ~ tracks:', tracks.length);
 
   useEffect(() => {
     loadLocalMusic();
@@ -72,10 +74,10 @@ export const HomeScreen = () => {
           <Text className="text-gray-500">Your offline music library</Text>
         </View>
         <View className="flex-row gap-4">
-          <TouchableOpacity className="p-2 bg-white/5 rounded-full">
+          <TouchableOpacity onPress={() => navigation.navigate('Search')} className="p-2 bg-white/5 rounded-full">
             <Search size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <TouchableOpacity className="p-2 bg-white/5 rounded-full">
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} className="p-2 bg-white/5 rounded-full">
             <Settings size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -106,7 +108,7 @@ export const HomeScreen = () => {
       {/* Local Tracks */}
       <View className="flex-row justify-between items-center mb-4">
         <Text className="text-white text-lg font-bold">Your Device Tracks</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('AllMusic')}>
           <Text className="text-primary text-sm">{tracks.length} tracks</Text>
         </TouchableOpacity>
       </View>
@@ -117,7 +119,7 @@ export const HomeScreen = () => {
         </View>
       ) : tracks.length > 0 ? (
         <FlatList
-          data={tracks}
+          data={tracks.slice(0, 20)} // Show only first 20 on home screen
           renderItem={renderTrack}
           keyExtractor={item => item.id}
           horizontal
@@ -133,7 +135,7 @@ export const HomeScreen = () => {
       {/* Top Albums / Placeholders */}
       <View className="flex-row justify-between items-center mb-4">
         <Text className="text-white text-lg font-bold">Top Albums</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Albums')}>
           <Text className="text-primary text-sm">See All</Text>
         </TouchableOpacity>
       </View>

@@ -1,8 +1,5 @@
 import * as MediaLibrary from 'expo-media-library';
-import { Query, AssetField, MediaType } from 'expo-media-library';
-import * as FileSystem from 'expo-file-system/legacy';
-import { parseBuffer } from '@missingcore/audio-metadata';
-import { Buffer } from 'buffer';
+import { getAssetsAsync } from 'expo-media-library/legacy';
 
 export interface ScannedTrack {
   id: string;
@@ -31,69 +28,43 @@ export const scanLocalMusic = async (): Promise<ScannedTrack[]> => {
   }
 
   try {
-    console.log('Fetching assets using the new Query API...');
-    const assets = await new Query()
-      .eq(AssetField.MEDIA_TYPE, MediaType.AUDIO)
-      .limit(100) // Process first 100 for performance, can paginate later
-      .exe();
+    console.log('Fetching assets using the legacy fast bulk API...');
     
-    console.log(`Found ${assets.length} audio files in device media library.`);
+    // Using legacy getAssetsAsync because it returns filename, uri, and duration instantly in bulk
+    // The new Query API requires thousands of slow bridge promises for each property.
+    let allAssets: any[] = [];
+    let hasNextPage = true;
+    let after: string | undefined = undefined;
 
-    const tracks: ScannedTrack[] = [];
+    while (hasNextPage) {
+      const assetsPage = await getAssetsAsync({
+        mediaType: 'audio',
+        first: 500, // Fetch in batches of 500
+        after: after,
+      });
 
-    for (const asset of assets) {
-      try {
-        const fileUri = await asset.getUri();
-        const fileInfo = await FileSystem.getInfoAsync(fileUri);
-        
-        let title = await asset.getFilename();
-        let artist = 'Unknown Artist';
-        let artwork;
-
-        if (fileInfo.exists && !fileInfo.isDirectory) {
-            try {
-                // To avoid reading the whole file which is slow, we can just read the first part
-                // However, expo-file-system readAsStringAsync with encoding base64 can be slow for large files
-                // We read up to 256KB to hopefully catch the ID3 tag
-                const lengthToRead = Math.min(256 * 1024, fileInfo.size);
-                const fileBase64 = await FileSystem.readAsStringAsync(fileUri, {
-                    encoding: FileSystem.EncodingType.Base64,
-                    length: lengthToRead,
-                    position: 0
-                });
-                
-                const buffer = Buffer.from(fileBase64, 'base64');
-                const metadata = parseBuffer(buffer);
-                
-                if (metadata.title) title = metadata.title;
-                if (metadata.artist) artist = metadata.artist;
-                
-                // If there's an image
-                if (metadata.images && metadata.images.length > 0) {
-                    const img = metadata.images[0];
-                    const base64Image = Buffer.from(img.data).toString('base64');
-                    artwork = `data:${img.mime};base64,${base64Image}`;
-                }
-            } catch (err) {
-                // If metadata parsing fails, fallback to defaults
-                console.log(`Could not parse metadata for ${title}`);
-            }
-        }
-
-        const duration = await asset.getDuration();
-
-        tracks.push({
-          id: asset.id,
-          url: fileUri,
-          title: title,
-          artist: artist,
-          duration: duration ?? 0,
-          artwork: artwork,
-        });
-      } catch (err) {
-        console.warn(`Error processing asset ${asset.id}:`, err);
-      }
+      allAssets = allAssets.concat(assetsPage.assets);
+      hasNextPage = assetsPage.hasNextPage;
+      after = assetsPage.endCursor;
     }
+    
+    console.log(`Found ${allAssets.length} audio files in device media library.`);
+
+    const tracks: ScannedTrack[] = allAssets.map(asset => {
+      let title = asset.filename;
+      if (title && title.lastIndexOf('.') > 0) {
+        title = title.substring(0, title.lastIndexOf('.'));
+      }
+
+      return {
+        id: asset.id,
+        url: asset.uri,
+        title: title,
+        artist: 'Unknown Artist',
+        duration: asset.duration ?? 0,
+        artwork: undefined, // Skip ID3 artwork to prevent freezing on large libraries
+      };
+    });
 
     return tracks;
   } catch (error) {

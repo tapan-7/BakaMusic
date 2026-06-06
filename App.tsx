@@ -17,7 +17,15 @@ import { setupPlayer } from './src/services/trackPlayerService';
 import { scanLocalMusic } from './src/services/musicScannerService';
 import { useMusicStore } from './src/store/useMusicStore';
 
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import { ArtistsScreen } from './src/screens/ArtistsScreen';
+import { AlbumsScreen } from './src/screens/AlbumsScreen';
+import { AllMusicScreen } from './src/screens/AllMusicScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 function TabNavigator() {
   return (
@@ -31,6 +39,18 @@ function TabNavigator() {
       <Tab.Screen name="Playlists" component={PlaylistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
+  );
+}
+
+function RootStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="Artists" component={ArtistsScreen} />
+      <Stack.Screen name="Albums" component={AlbumsScreen} />
+      <Stack.Screen name="AllMusic" component={AllMusicScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+    </Stack.Navigator>
   );
 }
 
@@ -54,7 +74,7 @@ export default function App() {
       <StatusBar barStyle="light-content" />
       <NavigationContainer>
         <View style={{ flex: 1, backgroundColor: '#000' }}>
-          <TabNavigator />
+          <RootStack />
           <MiniPlayer />
           <PlayerContainer />
         </View>

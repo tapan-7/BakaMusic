@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { Settings, ChevronRight, Music2, Album as AlbumIcon, Heart, ListMusic, Download, Clock, Activity, BarChart3, User, Edit2 } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -13,6 +14,7 @@ import { useProfileStore } from '../store/useProfileStore';
 import { useMusicStats } from '../store/useMusicStore';
 
 export const ProfileScreen = () => {
+  const navigation = useNavigation<any>();
   const rotation = useSharedValue(0);
   const { profile, updateProfile } = useProfileStore();
   const { songsCount, albumsCount, artistsCount } = useMusicStats();
@@ -28,11 +30,11 @@ export const ProfileScreen = () => {
   ];
 
   const MENU_ITEMS = [
-    { icon: Music2, label: 'My Songs', count: songsCount.toString() },
-    { icon: AlbumIcon, label: 'Albums', count: albumsCount.toString() },
-    { icon: Heart, label: 'Favorites', count: '0' },
-    { icon: ListMusic, label: 'Playlists', count: artistsCount.toString() }, // using derived playlists
-    { icon: Download, label: 'Downloads', count: '0' },
+    { icon: Music2, label: 'My Songs', count: songsCount.toString(), screen: 'AllMusic' },
+    { icon: AlbumIcon, label: 'Albums', count: albumsCount.toString(), screen: 'Albums' },
+    { icon: Heart, label: 'Favorites', count: '0', screen: 'AllMusic' },
+    { icon: ListMusic, label: 'Playlists', count: artistsCount.toString(), screen: 'Playlists' },
+    { icon: Download, label: 'Downloads', count: '0', screen: null },
   ];
 
   const handleSaveProfile = () => {
@@ -74,7 +76,7 @@ export const ProfileScreen = () => {
             <ChevronRight size={24} color="#FFFFFF" className="rotate-180" />
           </TouchableOpacity>
           <Text className="text-white font-bold text-lg">Profile</Text>
-          <TouchableOpacity className="p-2 bg-white/5 rounded-full">
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} className="p-2 bg-white/5 rounded-full">
             <Settings size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -144,7 +146,11 @@ export const ProfileScreen = () => {
         {/* Menu Section */}
         <View className="bg-white rounded-t-[40px] pt-8 pb-32 px-6">
           {MENU_ITEMS.map((item, i) => (
-            <TouchableOpacity key={i} className="flex-row items-center justify-between py-4 border-b border-gray-100">
+            <TouchableOpacity 
+              key={i} 
+              className="flex-row items-center justify-between py-4 border-b border-gray-100"
+              onPress={() => item.screen ? navigation.navigate(item.screen) : null}
+            >
               <View className="flex-row items-center gap-4">
                 <View className="p-2 bg-gray-50 rounded-xl">
                   <item.icon size={20} color="#000000" />
@@ -158,7 +164,10 @@ export const ProfileScreen = () => {
             </TouchableOpacity>
           ))}
           
-          <TouchableOpacity className="flex-row items-center gap-4 py-4 mt-4">
+          <TouchableOpacity 
+            className="flex-row items-center gap-4 py-4 mt-4"
+            onPress={() => navigation.navigate('Settings')}
+          >
             <View className="p-2 bg-gray-50 rounded-xl">
                 <Settings size={20} color="#000000" />
             </View>
