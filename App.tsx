@@ -14,6 +14,8 @@ import { BottomTabBar } from './src/navigation/BottomTabBar';
 import { MiniPlayer } from './src/components/player/MiniPlayer';
 import { PlayerContainer } from './src/components/player/PlayerContainer';
 import { setupPlayer } from './src/services/trackPlayerService';
+import { scanLocalMusic } from './src/services/musicScannerService';
+import { useMusicStore } from './src/store/useMusicStore';
 
 const Tab = createBottomTabNavigator();
 
@@ -33,8 +35,18 @@ function TabNavigator() {
 }
 
 export default function App() {
+  const { setScannedTracks, setIsScanning } = useMusicStore();
+
   useEffect(() => {
-    setupPlayer();
+    const initApp = async () => {
+      await setupPlayer();
+      setIsScanning(true);
+      const tracks = await scanLocalMusic();
+      setScannedTracks(tracks);
+      setIsScanning(false);
+    };
+
+    initApp();
   }, []);
 
   return (

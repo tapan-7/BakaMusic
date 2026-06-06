@@ -1,31 +1,57 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { Settings, ChevronRight, Music2, Album, Heart, ListMusic, Download, LogOut, Clock, Activity, BarChart3, User } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { Settings, ChevronRight, Music2, Album as AlbumIcon, Heart, ListMusic, Download, Clock, Activity, BarChart3, User, Edit2 } from 'lucide-react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
   withRepeat, 
   withTiming, 
   Easing,
-  interpolate,
 } from 'react-native-reanimated';
-
-const STATS = [
-  { label: 'Songs', value: '324' },
-  { label: 'Albums', value: '42' },
-  { label: 'Playlists', value: '18' },
-];
-
-const MENU_ITEMS = [
-  { icon: Music2, label: 'My Songs', count: '324' },
-  { icon: Album, label: 'Albums', count: '42' },
-  { icon: Heart, label: 'Favorites', count: '28' },
-  { icon: ListMusic, label: 'Playlists', count: '12' },
-  { icon: Download, label: 'Downloads', count: '156' },
-];
+import * as ImagePicker from 'expo-image-picker';
+import { useProfileStore } from '../store/useProfileStore';
+import { useMusicStats } from '../store/useMusicStore';
 
 export const ProfileScreen = () => {
   const rotation = useSharedValue(0);
+  const { profile, updateProfile } = useProfileStore();
+  const { songsCount, albumsCount, artistsCount } = useMusicStats();
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(profile.name);
+  const [editBio, setEditBio] = useState(profile.bio);
+
+  const STATS = [
+    { label: 'Songs', value: songsCount.toString() },
+    { label: 'Albums', value: albumsCount.toString() },
+    { label: 'Artists', value: artistsCount.toString() },
+  ];
+
+  const MENU_ITEMS = [
+    { icon: Music2, label: 'My Songs', count: songsCount.toString() },
+    { icon: AlbumIcon, label: 'Albums', count: albumsCount.toString() },
+    { icon: Heart, label: 'Favorites', count: '0' },
+    { icon: ListMusic, label: 'Playlists', count: artistsCount.toString() }, // using derived playlists
+    { icon: Download, label: 'Downloads', count: '0' },
+  ];
+
+  const handleSaveProfile = () => {
+    updateProfile({ name: editName, bio: editBio });
+    setIsEditing(false);
+  };
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      updateProfile({ profileImageUri: result.assets[0].uri });
+    }
+  };
 
   React.useEffect(() => {
     rotation.value = withRepeat(
@@ -55,21 +81,54 @@ export const ProfileScreen = () => {
 
         {/* Profile Info */}
         <View className="items-center mb-10">
-          <View className="relative">
+          <TouchableOpacity className="relative" onPress={pickImage}>
             <Animated.View 
               style={[animatedRingStyle]}
               className="absolute -inset-2 border-2 border-primary border-t-transparent rounded-full"
             />
             <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop' }} 
+              source={{ uri: profile.profileImageUri || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop' }} 
               className="w-24 h-24 rounded-full border-2 border-black"
             />
             <View className="absolute -bottom-2 -right-2 bg-yellow-500 px-2 py-0.5 rounded-full flex-row items-center">
                 <Text className="text-[10px] font-bold text-black">Premium</Text>
             </View>
-          </View>
-          <Text className="text-white text-2xl font-bold mt-6">John Doe</Text>
-          <Text className="text-gray-500">Music Lover</Text>
+            <View className="absolute bottom-0 right-0 bg-black/50 p-1 rounded-full">
+                <Edit2 size={12} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          
+          {isEditing ? (
+            <View className="mt-6 items-center w-full px-10">
+              <TextInput 
+                className="text-white text-2xl font-bold bg-white/10 w-full text-center rounded-lg py-1 mb-2"
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Name"
+                placeholderTextColor="#999"
+              />
+              <TextInput 
+                className="text-gray-400 bg-white/10 w-full text-center rounded-lg py-1 mb-4"
+                value={editBio}
+                onChangeText={setEditBio}
+                placeholder="Bio"
+                placeholderTextColor="#999"
+              />
+              <TouchableOpacity onPress={handleSaveProfile} className="bg-primary px-6 py-2 rounded-full">
+                <Text className="text-white font-bold">Save</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View className="items-center mt-6">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-white text-2xl font-bold">{profile.name}</Text>
+                <TouchableOpacity onPress={() => setIsEditing(true)}>
+                  <Edit2 size={16} color="#666" />
+                </TouchableOpacity>
+              </View>
+              <Text className="text-gray-500">{profile.bio}</Text>
+            </View>
+          )}
         </View>
 
         {/* Stats */}
@@ -108,21 +167,6 @@ export const ProfileScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Segment Bar (Simulated bottom fixed UI) */}
-      <View className="absolute bottom-10 left-10 right-10 flex-row bg-black rounded-full p-2 items-center justify-between shadow-xl">
-         <TouchableOpacity className="flex-1 items-center p-3 bg-white/10 rounded-full">
-            <Clock size={20} color="#FFFFFF" />
-         </TouchableOpacity>
-         <TouchableOpacity className="flex-1 items-center p-3">
-            <Heart size={20} color="#FFFFFF" />
-         </TouchableOpacity>
-         <TouchableOpacity className="flex-1 items-center p-3">
-            <BarChart3 size={20} color="#FFFFFF" />
-         </TouchableOpacity>
-         <TouchableOpacity className="flex-1 items-center p-3 bg-primary rounded-full">
-            <User size={20} color="#FFFFFF" />
-         </TouchableOpacity>
-      </View>
     </View>
   );
 };
