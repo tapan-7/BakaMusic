@@ -18,6 +18,7 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const MINIMIZED_HEIGHT = 100;
 const MAX_TRANSLATE = SCREEN_HEIGHT - MINIMIZED_HEIGHT;
+const DEFAULT_ARTWORK = 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop';
 
 export const PlayerSheet = () => {
   const { currentTrack, isPlaying, progress, duration, isExpanded, setIsExpanded } = usePlayerStore();
@@ -87,13 +88,12 @@ export const PlayerSheet = () => {
       <Animated.View style={[styles.container, sheetStyle]} className="bg-black border-t border-white/5">
         
         {/* MINI PLAYER (Visible when down) */}
-        <Animated.View style={[styles.absoluteFill, miniPlayerStyle]} className="bg-surface rounded-t-2xl p-2 flex-row items-center border border-white/5 shadow-lg">
-          <TouchableOpacity 
+        <Animated.View style={[styles.absoluteFill, miniPlayerStyle]} className="bg-surface rounded-t-2xl p-2 flex-row items-center border border-white/5 shadow-lg">          <TouchableOpacity 
             onPress={() => setIsExpanded(true)}
             className="flex-row items-center flex-1"
           >
             <Image 
-              source={{ uri: currentTrack.artwork }} 
+              source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
               className="w-12 h-12 rounded-lg"
             />
             <View className="ml-3 flex-1">
@@ -139,7 +139,7 @@ export const PlayerSheet = () => {
           {/* Album Art */}
           <View className="items-center justify-center mb-10">
             <Image 
-              source={{ uri: currentTrack.artwork }} 
+              source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
               className="rounded-3xl"
               style={{ width: SCREEN_WIDTH - 48, height: SCREEN_WIDTH - 48 }}
             />

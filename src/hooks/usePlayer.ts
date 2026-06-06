@@ -7,6 +7,7 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import { usePlayerStore, Track } from '../store/playerStore';
 import { useMusicStore } from '../store/useMusicStore';
+import { extractTrackMetadata } from '../services/musicScannerService';
 
 export const usePlayer = () => {
   const { setProgress, setDuration, setPlaying, setTrack, currentTrack } = usePlayerStore();
@@ -26,8 +27,20 @@ export const usePlayer = () => {
       setPlaying(event.state === State.Playing);
     }
     if (event.type === Event.PlaybackActiveTrackChanged) {
-        const track = event.track as Track;
+        let track = event.track as Track;
         if (track) {
+            // If artwork is missing (because it was loaded from background queue without metadata)
+            if (!track.artwork || track.artwork === 'Unknown Artist') {
+                const meta = await extractTrackMetadata(track.url);
+                if (meta) {
+                    track = {
+                        ...track,
+                        title: meta.title || track.title,
+                        artist: meta.artist || track.artist,
+                        artwork: meta.artwork || track.artwork
+                    };
+                }
+            }
             setTrack(track);
         }
     }
@@ -37,6 +50,9 @@ export const usePlayer = () => {
     const { scannedTracks } = useMusicStore.getState();
     const startIndex = scannedTracks.findIndex((t: any) => t.id === track.id);
     
+    // Eagerly set the track so the UI updates instantly with the artwork
+    setTrack(track);
+
     // Instantly reset and play the clicked track
     await TrackPlayer.reset();
     await TrackPlayer.add([track]);
