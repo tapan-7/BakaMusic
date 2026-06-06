@@ -14,4 +14,5 @@ export type RootStackParamList = {
   Albums: undefined;
   AllMusic: undefined;
   Settings: undefined;
+  TrackList: { title: string; type: 'artist' | 'album' | 'playlist'; value: string };
 };

@@ -4,8 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Disc3 } from 'lucide-react-native';
 import { useMusicStore } from '../store/useMusicStore';
 
+import { RootStackParamList } from '../navigation/types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 export const AlbumsScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { scannedTracks } = useMusicStore();
 
   const albums = useMemo(() => {
@@ -25,7 +28,10 @@ export const AlbumsScreen = () => {
   }, [scannedTracks]);
 
   const renderAlbum = ({ item }: { item: { name: string; artist: string; count: number } }) => (
-    <TouchableOpacity className="flex-1 m-2">
+    <TouchableOpacity 
+      className="flex-1 m-2"
+      onPress={() => navigation.navigate('TrackList', { title: item.name, type: 'album', value: item.name })}
+    >
       <View className="w-full aspect-square rounded-xl bg-white/10 items-center justify-center mb-2 overflow-hidden">
         <Disc3 color="#FFF" size={48} opacity={0.5} />
       </View>

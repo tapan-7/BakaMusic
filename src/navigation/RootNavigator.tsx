@@ -6,6 +6,7 @@ import { ArtistsScreen } from '../screens/ArtistsScreen';
 import { AlbumsScreen } from '../screens/AlbumsScreen';
 import { AllMusicScreen } from '../screens/AllMusicScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { TrackListScreen } from '../screens/TrackListScreen';
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -18,6 +19,7 @@ export function RootNavigator() {
       <Stack.Screen name="Albums" component={AlbumsScreen} />
       <Stack.Screen name="AllMusic" component={AllMusicScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="TrackList" component={TrackListScreen} />
     </Stack.Navigator>
   );
 }

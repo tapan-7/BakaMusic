@@ -4,8 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, User2 } from 'lucide-react-native';
 import { useMusicStore } from '../store/useMusicStore';
 
+import { RootStackParamList } from '../navigation/types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 export const ArtistsScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { scannedTracks } = useMusicStore();
 
   const artists = useMemo(() => {
@@ -21,7 +24,10 @@ export const ArtistsScreen = () => {
   }, [scannedTracks]);
 
   const renderArtist = ({ item }: { item: { name: string; count: number } }) => (
-    <TouchableOpacity className="flex-row items-center mb-6">
+    <TouchableOpacity 
+      className="flex-row items-center mb-6"
+      onPress={() => navigation.navigate('TrackList', { title: item.name, type: 'artist', value: item.name })}
+    >
       <View className="w-14 h-14 rounded-full bg-white/10 items-center justify-center mr-4">
         <User2 color="#FFF" size={24} />
       </View>
