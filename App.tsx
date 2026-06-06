@@ -4,6 +4,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import "./src/theme/global.css";
+
 import { HomeScreen } from './src/screens/HomeScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { LibraryScreen, PlaylistScreen } from './src/screens/OtherScreens';

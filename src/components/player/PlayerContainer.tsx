@@ -47,7 +47,7 @@ export const PlayerContainer = () => {
         translateY.value,
         [0, SCREEN_HEIGHT],
         [0, 30],
-        Extrapolate.CLAMP
+        { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
       ),
     };
   });

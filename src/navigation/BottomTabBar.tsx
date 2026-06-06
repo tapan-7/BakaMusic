@@ -7,6 +7,7 @@ import Animated, {
   withSpring, 
   withTiming,
   interpolate,
+  FadeIn,
 } from 'react-native-reanimated';
 import { Home, Search, Library, PlayCircle, User } from 'lucide-react-native';
 
@@ -83,7 +84,7 @@ const TabItem = ({ isFocused, onPress, label }: { isFocused: boolean; onPress: (
       </Animated.View>
       {isFocused && (
           <Animated.Text 
-            entering={withTiming({ duration: 200 })}
+            entering={FadeIn.duration(200)}
             className="text-[10px] text-primary mt-1 font-medium"
           >
             {label}
