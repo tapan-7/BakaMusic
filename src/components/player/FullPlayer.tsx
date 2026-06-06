@@ -17,7 +17,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export const FullPlayer = () => {
   const { currentTrack, isPlaying, progress, duration, setIsExpanded } = usePlayerStore();
   const { togglePlayback } = usePlayer();
-  const playScale = useSharedValue(1);
 
   if (!currentTrack) return null;
 
@@ -28,17 +27,6 @@ export const FullPlayer = () => {
   };
 
   const progressPercentage = duration > 0 ? (progress / duration) * 100 : 0;
-
-  const animatedPlayStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: playScale.value }],
-  }));
-
-  const onPlayPress = () => {
-    playScale.value = withSpring(1.2, {}, () => {
-      playScale.value = withSpring(1);
-    });
-    togglePlayback();
-  };
 
   return (
     <View className="flex-1 bg-black px-6 pt-12 pb-10">
@@ -101,16 +89,14 @@ export const FullPlayer = () => {
           </TouchableOpacity>
           
           <TouchableOpacity 
-            onPress={onPlayPress}
+            onPress={togglePlayback}
             className="w-20 h-20 bg-primary rounded-full items-center justify-center shadow-lg"
           >
-            <Animated.View style={animatedPlayStyle}>
-              {isPlaying ? (
-                <Pause size={40} color="#FFFFFF" fill="#FFFFFF" />
-              ) : (
-                <Play size={40} color="#FFFFFF" fill="#FFFFFF" />
-              )}
-            </Animated.View>
+            {isPlaying ? (
+              <Pause size={40} color="#FFFFFF" fill="#FFFFFF" />
+            ) : (
+              <Play size={40} color="#FFFFFF" fill="#FFFFFF" />
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => TrackPlayer.skipToNext()}>

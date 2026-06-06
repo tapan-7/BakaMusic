@@ -19,9 +19,7 @@ export const MiniPlayer = () => {
   const progressPercentage = duration > 0 ? (progress / duration) * 100 : 0;
 
   return (
-    <Animated.View 
-      entering={FadeIn.duration(400)}
-      exiting={FadeOut.duration(400)}
+    <View 
       className="absolute bottom-24 left-4 right-4 bg-surface rounded-2xl p-2 flex-row items-center border border-white/5 shadow-lg"
     >
       <TouchableOpacity 
@@ -60,6 +58,6 @@ export const MiniPlayer = () => {
           className="h-full bg-primary"
         />
       </View>
-    </Animated.View>
+    </View>
   );
 };

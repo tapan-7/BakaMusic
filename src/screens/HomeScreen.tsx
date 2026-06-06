@@ -25,6 +25,8 @@ const FEATURED_PLAYLIST = {
 const DEFAULT_ARTWORK =
   'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop';
 
+import { TrackListItem } from '../components/TrackListItem';
+
 export const HomeScreen = () => {
   const navigation = useNavigation<any>();
   const { playTrack } = usePlayer();
@@ -40,29 +42,11 @@ export const HomeScreen = () => {
   }, []);
 
   const renderTrack = ({ item }: { item: ScannedTrack }) => (
-    <TouchableOpacity
-      onPress={() =>
-        playTrack({
-          id: item.id,
-          title: item.title,
-          artist: item.artist,
-          artwork: item.artwork || DEFAULT_ARTWORK,
-          url: item.url,
-        })
-      }
-      className="mr-4 w-32"
-    >
-      <Image
-        source={{ uri: item.artwork || DEFAULT_ARTWORK }}
-        className="w-32 h-32 rounded-2xl mb-2 bg-white/10"
-      />
-      <Text numberOfLines={1} className="text-white font-medium text-sm">
-        {item.title}
-      </Text>
-      <Text numberOfLines={1} className="text-gray-500 text-xs">
-        {item.artist}
-      </Text>
-    </TouchableOpacity>
+    <TrackListItem 
+      track={item} 
+      onPress={playTrack} 
+      layout="column"
+    />
   );
 
   return (

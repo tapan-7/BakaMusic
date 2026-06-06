@@ -1,17 +1,24 @@
 import { create } from 'zustand';
-import { scanLocalMusic, ScannedTrack } from '../services/musicScannerService';
+import { scanLocalMusic, ScannedTrack, extractTrackMetadata } from '../services/musicScannerService';
 
 interface MusicStore {
   scannedTracks: ScannedTrack[];
   setScannedTracks: (tracks: ScannedTrack[]) => void;
+  updateTrackMetadata: (id: string, metadata: Partial<ScannedTrack>) => void;
   isScanning: boolean;
   setIsScanning: (scanning: boolean) => void;
   loadLocalMusic: () => Promise<void>;
 }
 
-export const useMusicStore = create<MusicStore>((set) => ({
+export const useMusicStore = create<MusicStore>((set, get) => ({
   scannedTracks: [],
   setScannedTracks: (tracks) => set({ scannedTracks: tracks }),
+  updateTrackMetadata: (id, metadata) => 
+    set((state) => ({
+      scannedTracks: state.scannedTracks.map(t => 
+        t.id === id ? { ...t, ...metadata } : t
+      )
+    })),
   isScanning: false,
   setIsScanning: (scanning) => set({ isScanning: scanning }),
   loadLocalMusic: async () => {

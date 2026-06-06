@@ -6,8 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import "./src/theme/global.css";
 
-import { MiniPlayer } from './src/components/player/MiniPlayer';
-import { PlayerContainer } from './src/components/player/PlayerContainer';
+import { PlayerSheet } from './src/components/player/PlayerSheet';
 import { setupPlayer } from './src/services/trackPlayerService';
 import { scanLocalMusic } from './src/services/musicScannerService';
 import { useMusicStore } from './src/store/useMusicStore';
@@ -35,8 +34,7 @@ export default function App() {
       <NavigationContainer>
         <View style={{ flex: 1, backgroundColor: '#000' }}>
           <RootNavigator />
-          <MiniPlayer />
-          <PlayerContainer />
+          <PlayerSheet />
         </View>
       </NavigationContainer>
     </GestureHandlerRootView>
