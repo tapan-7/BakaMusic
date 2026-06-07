@@ -1,14 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, Dimensions, StyleSheet } from 'react-native';
-import { ChevronDown, Heart, Shuffle, Repeat, SkipBack, SkipForward, Play, Pause, ListMusic, MoreHorizontal } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
+import { ChevronDown, Heart, Shuffle, Repeat, SkipBack, SkipForward, Play, Pause, MoreHorizontal } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
-  withSpring, 
   interpolate,
   runOnJS,
   withTiming,
+  Extrapolate
 } from 'react-native-reanimated';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlayer } from '../../hooks/usePlayer';
@@ -25,7 +25,7 @@ export const PlayerSheet = () => {
   const { togglePlayback } = usePlayer();
   
   // translateY goes from 0 (fully expanded) to MAX_TRANSLATE (minimized)
-  const translateY = useSharedValue(MAX_TRANSLATE);
+  const translateY = useSharedValue(isExpanded ? 0 : MAX_TRANSLATE);
 
   React.useEffect(() => {
     if (isExpanded) {
@@ -59,18 +59,37 @@ export const PlayerSheet = () => {
 
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
-    borderTopLeftRadius: interpolate(translateY.value, [0, MAX_TRANSLATE], [0, 24]),
-    borderTopRightRadius: interpolate(translateY.value, [0, MAX_TRANSLATE], [0, 24]),
+    borderTopLeftRadius: interpolate(translateY.value, [0, MAX_TRANSLATE], [0, 24], Extrapolate.CLAMP),
+    borderTopRightRadius: interpolate(translateY.value, [0, MAX_TRANSLATE], [0, 24], Extrapolate.CLAMP),
   }));
 
   const miniPlayerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateY.value, [MAX_TRANSLATE - 100, MAX_TRANSLATE], [0, 1]),
+    opacity: interpolate(translateY.value, [MAX_TRANSLATE - 100, MAX_TRANSLATE], [0, 1], Extrapolate.CLAMP),
     pointerEvents: translateY.value > MAX_TRANSLATE - 50 ? 'auto' : 'none',
   }));
 
   const fullPlayerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateY.value, [0, 100], [1, 0]),
+    opacity: interpolate(translateY.value, [0, MAX_TRANSLATE - 150], [1, 0], Extrapolate.CLAMP),
     pointerEvents: translateY.value < 50 ? 'auto' : 'none',
+  }));
+
+  const animatedImageStyle = useAnimatedStyle(() => {
+    return {
+      position: 'absolute',
+      // Mini player image left is 24 (16 container + 8 padding). Full player image left is 24 (px-6).
+      left: 24,
+      // Full player image top is around 120. Mini player image top is 8.
+      top: interpolate(translateY.value, [0, MAX_TRANSLATE], [120, 8], Extrapolate.CLAMP),
+      width: interpolate(translateY.value, [0, MAX_TRANSLATE], [SCREEN_WIDTH - 48, 48], Extrapolate.CLAMP),
+      height: interpolate(translateY.value, [0, MAX_TRANSLATE], [SCREEN_WIDTH - 48, 48], Extrapolate.CLAMP),
+      borderRadius: interpolate(translateY.value, [0, MAX_TRANSLATE], [24, 8], Extrapolate.CLAMP),
+      zIndex: 100,
+    };
+  });
+
+  const fullPlayerBgStyle = useAnimatedStyle(() => ({
+    backgroundColor: 'black',
+    opacity: interpolate(translateY.value, [0, MAX_TRANSLATE], [1, 0], Extrapolate.CLAMP),
   }));
 
   if (!currentTrack) return null;
@@ -87,15 +106,23 @@ export const PlayerSheet = () => {
     <GestureDetector gesture={gesture}>
       <Animated.View style={[styles.container, sheetStyle]} pointerEvents="box-none">
         
+        {/* SHARED ANIMATED IMAGE */}
+        <Animated.Image 
+          source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
+          style={animatedImageStyle}
+        />
+
+        {/* FULL PLAYER BACKGROUND */}
+        <Animated.View style={[styles.absoluteFill, fullPlayerBgStyle]} pointerEvents="none" />
+
         {/* MINI PLAYER (Visible when down) */}
-        <Animated.View style={[{ position: 'absolute', top: 0, left: 16, right: 16, height: 64, zIndex: 10 }, miniPlayerStyle]} className="bg-surface rounded-2xl p-2 flex-row items-center border border-white/5 shadow-lg">          <TouchableOpacity 
+        <Animated.View style={[{ position: 'absolute', top: 0, left: 16, right: 16, height: 64, zIndex: 10 }, miniPlayerStyle]} className="bg-surface rounded-2xl p-2 flex-row items-center border border-white/5 shadow-lg">
+          <TouchableOpacity 
             onPress={() => setIsExpanded(true)}
-            className="flex-row items-center flex-1"
+            className="flex-row items-center flex-1 h-full"
           >
-            <Animated.Image 
-              source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
-              className="w-12 h-12 rounded-lg"
-            />
+            {/* Placeholder view to keep the layout spacing since the real image is absolute */}
+            <View className="w-12 h-12" />
             <View className="ml-3 flex-1">
               <Text numberOfLines={1} className="text-white font-semibold text-sm">
                 {currentTrack.title}
@@ -124,7 +151,7 @@ export const PlayerSheet = () => {
         </Animated.View>
 
         {/* FULL PLAYER (Visible when up) */}
-        <Animated.View style={[styles.absoluteFill, fullPlayerStyle]} className="px-6 pt-12 pb-10 bg-black">
+        <Animated.View style={[styles.absoluteFill, fullPlayerStyle, { zIndex: 5 }]} className="px-6 pt-12 pb-10">
           {/* Header */}
           <View className="flex-row justify-between items-center mb-8">
             <TouchableOpacity onPress={() => setIsExpanded(false)}>
@@ -136,14 +163,8 @@ export const PlayerSheet = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Album Art */}
-          <View className="items-center justify-center mb-10">
-            <Animated.Image 
-              source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
-              className="rounded-3xl"
-              style={{ width: SCREEN_WIDTH - 48, height: SCREEN_WIDTH - 48 }}
-            />
-          </View>
+          {/* Placeholder for Album Art Layout spacing */}
+          <View className="items-center justify-center mb-10" style={{ height: SCREEN_WIDTH - 48 }} />
 
           {/* Song Info */}
           <View className="flex-row justify-between items-center mb-8">
