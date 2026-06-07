@@ -92,9 +92,10 @@ export const PlayerSheet = () => {
             onPress={() => setIsExpanded(true)}
             className="flex-row items-center flex-1"
           >
-            <Image 
+            <Animated.Image 
               source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
               className="w-12 h-12 rounded-lg"
+              sharedTransitionTag="artwork"
             />
             <View className="ml-3 flex-1">
               <Text numberOfLines={1} className="text-white font-semibold text-sm">
@@ -138,10 +139,11 @@ export const PlayerSheet = () => {
 
           {/* Album Art */}
           <View className="items-center justify-center mb-10">
-            <Image 
+            <Animated.Image 
               source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
               className="rounded-3xl"
               style={{ width: SCREEN_WIDTH - 48, height: SCREEN_WIDTH - 48 }}
+              sharedTransitionTag="artwork"
             />
           </View>
 

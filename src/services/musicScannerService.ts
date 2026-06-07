@@ -1,5 +1,9 @@
 import * as MediaLibrary from 'expo-media-library';
 import { getAssetsAsync } from 'expo-media-library/legacy';
+import { extractTrackMetadata } from './MetadataExtractor';
+import { insertOrUpdateSong, deleteSongsNotInList, getSongById } from '../database/database';
+
+export { extractTrackMetadata };
 
 export interface ScannedTrack {
   id: string;
@@ -9,29 +13,27 @@ export interface ScannedTrack {
   album?: string;
   duration: number;
   artwork?: string;
+  lastModified?: number;
 }
 
 export const requestMediaPermissions = async () => {
   console.log('Requesting media permissions...');
-  // Explicitly ask for audio permissions on Android 13+
   const response = await MediaLibrary.requestPermissionsAsync(false, ['audio']);
   console.log('Permission response:', response);
   return response.status === 'granted';
 };
 
-export const scanLocalMusic = async (): Promise<ScannedTrack[]> => {
-  console.log('Starting scanLocalMusic...');
+export const syncLocalMusicInBackground = async (onProgress?: (track: ScannedTrack) => void): Promise<void> => {
+  console.log('Starting background sync...');
   const hasPermission = await requestMediaPermissions();
   if (!hasPermission) {
     console.warn('Media permission denied or not granted yet.');
-    return [];
+    return;
   }
 
   try {
-    console.log('Fetching assets using the legacy fast bulk API...');
+    console.log('Fetching assets from device...');
     
-    // Using legacy getAssetsAsync because it returns filename, uri, and duration instantly in bulk
-    // The new Query API requires thousands of slow bridge promises for each property.
     let allAssets: any[] = [];
     let hasNextPage = true;
     let after: string | undefined = undefined;
@@ -39,7 +41,7 @@ export const scanLocalMusic = async (): Promise<ScannedTrack[]> => {
     while (hasNextPage) {
       const assetsPage = await getAssetsAsync({
         mediaType: 'audio',
-        first: 500, // Fetch in batches of 500
+        first: 500,
         after: after,
       });
 
@@ -50,51 +52,56 @@ export const scanLocalMusic = async (): Promise<ScannedTrack[]> => {
     
     console.log(`Found ${allAssets.length} audio files in device media library.`);
 
-    const tracks: ScannedTrack[] = allAssets.map(asset => {
-      let title = asset.filename;
-      if (title && title.lastIndexOf('.') > 0) {
-        title = title.substring(0, title.lastIndexOf('.'));
+    const currentAssetIds = allAssets.map(a => a.id);
+    
+    // Delete songs from DB that are no longer on device
+    deleteSongsNotInList(currentAssetIds);
+
+    // Incremental sync
+    for (const asset of allAssets) {
+      const existingTrack = getSongById(asset.id);
+      
+      const assetModificationTime = asset.modificationTime || 0;
+      
+      // If it's a new song or the file has been modified, extract metadata
+      if (!existingTrack || existingTrack.lastModified !== assetModificationTime) {
+        console.log(`Processing new/modified file: ${asset.filename}`);
+        
+        let title = asset.filename;
+        if (title && title.lastIndexOf('.') > 0) {
+          title = title.substring(0, title.lastIndexOf('.'));
+        }
+
+        const newTrack: ScannedTrack = {
+          id: asset.id,
+          url: asset.uri,
+          title: title,
+          artist: 'Unknown Artist',
+          duration: asset.duration ?? 0,
+          artwork: undefined,
+          lastModified: assetModificationTime,
+        };
+
+        // Extract heavy metadata
+        const metadata = await extractTrackMetadata(asset.uri);
+        if (metadata) {
+          newTrack.title = metadata.title || newTrack.title;
+          newTrack.artist = metadata.artist || newTrack.artist;
+          newTrack.album = metadata.album;
+          newTrack.artwork = metadata.artwork;
+        }
+
+        insertOrUpdateSong(newTrack);
+        
+        // Notify store about new track
+        if (onProgress) {
+          onProgress(newTrack);
+        }
       }
-
-      return {
-        id: asset.id,
-        url: asset.uri,
-        title: title,
-        artist: 'Unknown Artist',
-        duration: asset.duration ?? 0,
-        artwork: undefined, // Skip ID3 artwork to prevent freezing on large libraries
-      };
-    });
-
-    return tracks;
-  } catch (error) {
-    console.error('Error scanning music:', error);
-    return [];
-  }
-};
-
-import { getAudioMetadata } from '@missingcore/audio-metadata';
-
-export const extractTrackMetadata = async (uri: string): Promise<{ title?: string; artist?: string; album?: string; artwork?: string } | null> => {
-  try {
-    const response = await getAudioMetadata(uri, ['name', 'artist', 'album', 'artwork']);
+    }
     
-    console.log(`[Metadata] Extracted metadata for URI: ${uri}`, {
-        name: response.metadata.name,
-        artist: response.metadata.artist,
-        album: response.metadata.album,
-        hasArtwork: !!response.metadata.artwork
-    });
-    
-    let artwork = response.metadata.artwork;
-
-    return {
-      title: response.metadata.name,
-      artist: response.metadata.artist,
-      album: response.metadata.album,
-      artwork: artwork
-    };
+    console.log('Background sync complete.');
   } catch (error) {
-    return null;
+    console.error('Error syncing music:', error);
   }
 };

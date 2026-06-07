@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { scanLocalMusic, ScannedTrack, extractTrackMetadata } from '../services/musicScannerService';
+import { syncLocalMusicInBackground, ScannedTrack } from '../services/musicScannerService';
+import { getSongsFromDB, initDatabase } from '../database/database';
 
 interface MusicStore {
   scannedTracks: ScannedTrack[];
@@ -24,8 +25,32 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
   loadLocalMusic: async () => {
     set({ isScanning: true });
     try {
-      const tracks = await scanLocalMusic();
-      set({ scannedTracks: tracks });
+      // 1. Initialize DB and load cached songs instantly
+      initDatabase();
+      const cachedTracks = getSongsFromDB();
+      if (cachedTracks.length > 0) {
+        set({ scannedTracks: cachedTracks });
+      }
+
+      // 2. Start background sync
+      await syncLocalMusicInBackground((newTrack) => {
+        // As new tracks are processed or updated, we add/replace them in state
+        set((state) => {
+          const exists = state.scannedTracks.some(t => t.id === newTrack.id);
+          if (exists) {
+            return {
+              scannedTracks: state.scannedTracks.map(t => t.id === newTrack.id ? newTrack : t)
+            };
+          }
+          return {
+            scannedTracks: [...state.scannedTracks, newTrack]
+          };
+        });
+      });
+      
+      // 3. Final sync check (optional, but ensures state matches db exactly)
+      const finalTracks = getSongsFromDB();
+      set({ scannedTracks: finalTracks });
     } catch (error) {
       console.error('Failed to scan music:', error);
     } finally {

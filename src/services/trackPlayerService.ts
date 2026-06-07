@@ -22,6 +22,7 @@ export async function setupPlayer() {
         Capability.SkipToPrevious,
         Capability.SeekTo,
       ],
+      // @ts-ignore
       compactCapabilities: [
         Capability.Play,
         Capability.Pause,
