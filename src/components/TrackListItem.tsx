@@ -24,39 +24,9 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
   const currentTrack = usePlayerStore(state => state.currentTrack);
   const isPlaying = currentTrack?.id === track.id;
 
-  // Local state for lazy metadata
-  const [localArtwork, setLocalArtwork] = useState<string | undefined>(
-    track.artwork,
-  );
-  const [localArtist, setLocalArtist] = useState<string>(
-    track.artist || 'Unknown Artist',
-  );
-  const [localTitle, setLocalTitle] = useState<string>(track.title);
-
-  useEffect(() => {
-    // If it's already extracted or playing, skip
-    if (track.artwork && track.artist !== 'Unknown Artist') return;
-
-    let isMounted = true;
-    const fetchMetadata = async () => {
-      try {
-        const meta = await extractTrackMetadata(track.url);
-        if (isMounted && meta) {
-          if (meta.artwork) setLocalArtwork(meta.artwork);
-          if (meta.artist) setLocalArtist(meta.artist);
-          if (meta.title) setLocalTitle(meta.title);
-        }
-      } catch (e) {
-        // silently fail
-      }
-    };
-
-    fetchMetadata();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [track.url]);
+  const localArtwork = track.artwork;
+  const localArtist = track.artist || 'Unknown Artist';
+  const localTitle = track.title;
 
   if (layout === 'column') {
     return (

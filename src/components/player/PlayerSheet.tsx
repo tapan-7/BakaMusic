@@ -16,7 +16,7 @@ import TrackPlayer from 'react-native-track-player';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const MINIMIZED_HEIGHT = 100;
+const MINIMIZED_HEIGHT = 160;
 const MAX_TRANSLATE = SCREEN_HEIGHT - MINIMIZED_HEIGHT;
 const DEFAULT_ARTWORK = 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop';
 
@@ -29,9 +29,9 @@ export const PlayerSheet = () => {
 
   React.useEffect(() => {
     if (isExpanded) {
-      translateY.value = withSpring(0, { damping: 20, stiffness: 100 });
+      translateY.value = withTiming(0, { duration: 300 });
     } else {
-      translateY.value = withSpring(MAX_TRANSLATE, { damping: 20, stiffness: 100 });
+      translateY.value = withTiming(MAX_TRANSLATE, { duration: 300 });
     }
   }, [isExpanded]);
 
@@ -85,17 +85,16 @@ export const PlayerSheet = () => {
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.container, sheetStyle]} className="bg-black border-t border-white/5">
+      <Animated.View style={[styles.container, sheetStyle]} pointerEvents="box-none">
         
         {/* MINI PLAYER (Visible when down) */}
-        <Animated.View style={[styles.absoluteFill, miniPlayerStyle]} className="bg-surface rounded-t-2xl p-2 flex-row items-center border border-white/5 shadow-lg">          <TouchableOpacity 
+        <Animated.View style={[{ position: 'absolute', top: 0, left: 16, right: 16, height: 64, zIndex: 10 }, miniPlayerStyle]} className="bg-surface rounded-2xl p-2 flex-row items-center border border-white/5 shadow-lg">          <TouchableOpacity 
             onPress={() => setIsExpanded(true)}
             className="flex-row items-center flex-1"
           >
             <Animated.Image 
               source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
               className="w-12 h-12 rounded-lg"
-              sharedTransitionTag="artwork"
             />
             <View className="ml-3 flex-1">
               <Text numberOfLines={1} className="text-white font-semibold text-sm">
@@ -143,7 +142,6 @@ export const PlayerSheet = () => {
               source={{ uri: currentTrack.artwork || DEFAULT_ARTWORK }} 
               className="rounded-3xl"
               style={{ width: SCREEN_WIDTH - 48, height: SCREEN_WIDTH - 48 }}
-              sharedTransitionTag="artwork"
             />
           </View>
 

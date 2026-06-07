@@ -53,25 +53,31 @@ export const usePlayer = () => {
     // Eagerly set the track so the UI updates instantly with the artwork
     setTrack(track);
 
-    // Instantly reset and play the clicked track
-    await TrackPlayer.reset();
-    await TrackPlayer.add([track]);
-    await TrackPlayer.play();
-    
-    // If there are more tracks, load them in the background so we don't freeze the UI
-    if (startIndex !== -1 && scannedTracks.length > 1) {
-      setTimeout(async () => {
-        try {
-          // Load the next 50 tracks to keep the bridge fast
-          const nextTracks = scannedTracks.slice(startIndex + 1, startIndex + 51);
-          if (nextTracks.length > 0) {
-            await TrackPlayer.add(nextTracks);
-          }
-        } catch (error) {
-          console.error("Error queueing background tracks:", error);
+    // Defer the heavy track player operations to allow touch feedback to render instantly
+    setTimeout(async () => {
+      try {
+        await TrackPlayer.reset();
+        await TrackPlayer.add([track]);
+        await TrackPlayer.play();
+        
+        // If there are more tracks, load them in the background so we don't freeze the UI
+        if (startIndex !== -1 && scannedTracks.length > 1) {
+          setTimeout(async () => {
+            try {
+              // Load the next 50 tracks to keep the bridge fast
+              const nextTracks = scannedTracks.slice(startIndex + 1, startIndex + 51);
+              if (nextTracks.length > 0) {
+                await TrackPlayer.add(nextTracks);
+              }
+            } catch (error) {
+              console.error("Error queueing background tracks:", error);
+            }
+          }, 300);
         }
-      }, 300);
-    }
+      } catch (error) {
+        console.error("Error playing track:", error);
+      }
+    }, 0);
   };
 
   const togglePlayback = async () => {
