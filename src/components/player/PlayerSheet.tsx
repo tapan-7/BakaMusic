@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
 import { ChevronDown, Heart, Shuffle, Repeat, SkipBack, SkipForward, Play, Pause, MoreHorizontal } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -8,16 +8,15 @@ import Animated, {
   interpolate,
   runOnJS,
   withTiming,
-  Extrapolate
+  Extrapolate,
+  useAnimatedProps
 } from 'react-native-reanimated';
+import Slider from '@react-native-community/slider';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlayer } from '../../hooks/usePlayer';
-import TrackPlayer from 'react-native-track-player';
+import TrackPlayer, { RepeatMode as RNRepeatMode } from 'react-native-track-player';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const MINIMIZED_HEIGHT = 160;
-const MAX_TRANSLATE = SCREEN_HEIGHT - MINIMIZED_HEIGHT;
 const DEFAULT_ARTWORK = 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop';
 
 const formatTime = (seconds: number) => {
@@ -41,14 +40,22 @@ const MiniProgressBar = () => {
 const FullProgressBar = () => {
   const progress = usePlayerStore(state => state.progress);
   const duration = usePlayerStore(state => state.duration);
-  const progressPercentage = duration > 0 ? (progress / duration) * 100 : 0;
 
   return (
     <View className="mb-8">
-      <View className="h-[6px] bg-white/10 rounded-full mb-3 overflow-hidden">
-        <View style={{ width: `${progressPercentage}%` }} className="h-full bg-primary" />
-      </View>
-      <View className="flex-row justify-between">
+      <Slider
+        style={{ width: '100%', height: 40 }}
+        minimumValue={0}
+        maximumValue={duration > 0 ? duration : 1}
+        value={progress}
+        minimumTrackTintColor="#fa95ed" // primary color
+        maximumTrackTintColor="rgba(255, 255, 255, 0.1)"
+        thumbTintColor="#fa95ed"
+        onSlidingComplete={async (value) => {
+          await TrackPlayer.seekTo(value);
+        }}
+      />
+      <View className="flex-row justify-between px-2">
         <Text className="text-gray-500 text-xs font-medium">{formatTime(progress)}</Text>
         <Text className="text-gray-500 text-xs font-medium">{formatTime(duration)}</Text>
       </View>
@@ -62,21 +69,37 @@ export const PlayerSheet = () => {
   const isExpanded = usePlayerStore(state => state.isExpanded);
   const setIsExpanded = usePlayerStore(state => state.setIsExpanded);
   
+  const isShuffle = usePlayerStore(state => state.isShuffle);
+  const setIsShuffle = usePlayerStore(state => state.setIsShuffle);
+  
+  const repeatMode = usePlayerStore(state => state.repeatMode);
+  const setRepeatMode = usePlayerStore(state => state.setRepeatMode);
+  
+  const favorites = usePlayerStore(state => state.favorites);
+  const toggleFavorite = usePlayerStore(state => state.toggleFavorite);
+  const isTabBarVisible = usePlayerStore(state => state.isTabBarVisible);
+  
+  const isFavorite = currentTrack ? favorites.includes(currentTrack.id) : false;
+  
   const { togglePlayback } = usePlayer();
+  
+  const MINIMIZED_HEIGHT = isTabBarVisible ? 160 : 70;
+  const MAX_TRANSLATE = SCREEN_HEIGHT - MINIMIZED_HEIGHT;
   
   // translateY goes from 0 (fully expanded) to MAX_TRANSLATE (minimized)
   const translateY = useSharedValue(isExpanded ? 0 : MAX_TRANSLATE);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Only animate if the shared value is significantly different from the target
     // This prevents the useEffect from overriding the onEnd UI thread animation
     const target = isExpanded ? 0 : MAX_TRANSLATE;
     if (Math.abs(translateY.value - target) > 1) {
       translateY.value = withTiming(target, { duration: 300 });
     }
-  }, [isExpanded]);
+  }, [isExpanded, MAX_TRANSLATE]);
 
   const gesture = useMemo(() => Gesture.Pan()
+    .activeOffsetY([-10, 10]) // Only activate on vertical drag, allowing taps to pass through
     .onUpdate((event) => {
       let nextTranslate = (isExpanded ? 0 : MAX_TRANSLATE) + event.translationY;
       if (nextTranslate < 0) nextTranslate = 0;
@@ -110,7 +133,7 @@ export const PlayerSheet = () => {
          // Update React state in the background
          runOnJS(setIsExpanded)(expand);
       });
-    }), [isExpanded, setIsExpanded, translateY]);
+    }), [isExpanded, setIsExpanded, translateY, MAX_TRANSLATE]);
 
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -120,13 +143,19 @@ export const PlayerSheet = () => {
 
   const miniPlayerStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateY.value, [MAX_TRANSLATE - 100, MAX_TRANSLATE], [0, 1], Extrapolate.CLAMP),
-    pointerEvents: translateY.value > MAX_TRANSLATE - 50 ? 'auto' : 'none',
   }));
+
+  const miniPlayerProps = useAnimatedProps(() => ({
+    pointerEvents: translateY.value > MAX_TRANSLATE - 50 ? 'auto' : 'none',
+  }) as any);
 
   const fullPlayerStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateY.value, [0, MAX_TRANSLATE - 150], [1, 0], Extrapolate.CLAMP),
-    pointerEvents: translateY.value < 50 ? 'auto' : 'none',
   }));
+
+  const fullPlayerProps = useAnimatedProps(() => ({
+    pointerEvents: translateY.value < 50 ? 'box-none' : 'none',
+  }) as any);
 
   const animatedImageStyle = useAnimatedStyle(() => {
     return {
@@ -147,7 +176,36 @@ export const PlayerSheet = () => {
     opacity: interpolate(translateY.value, [0, MAX_TRANSLATE], [1, 0], Extrapolate.CLAMP),
   }));
 
+  const fullPlayerBgProps = useAnimatedProps(() => ({
+    pointerEvents: translateY.value < MAX_TRANSLATE - 50 ? 'auto' : 'none',
+  }) as any);
+
   if (!currentTrack) return null;
+
+  const toggleShuffle = async () => {
+    const newState = !isShuffle;
+    setIsShuffle(newState);
+    // Note: TrackPlayer doesn't have a native shuffle mode, it's usually handled in queue generation
+  };
+
+  const toggleRepeat = async () => {
+    let newMode: 'off' | 'track' | 'queue' = 'off';
+    let nativeMode = RNRepeatMode.Off;
+    
+    if (repeatMode === 'off') {
+      newMode = 'queue';
+      nativeMode = RNRepeatMode.Queue;
+    } else if (repeatMode === 'queue') {
+      newMode = 'track';
+      nativeMode = RNRepeatMode.Track;
+    } else {
+      newMode = 'off';
+      nativeMode = RNRepeatMode.Off;
+    }
+    
+    setRepeatMode(newMode);
+    await TrackPlayer.setRepeatMode(nativeMode);
+  };
 
   return (
     <GestureDetector gesture={gesture}>
@@ -160,10 +218,10 @@ export const PlayerSheet = () => {
         />
 
         {/* FULL PLAYER BACKGROUND */}
-        <Animated.View style={[styles.absoluteFill, fullPlayerBgStyle]} pointerEvents="none" />
+        <Animated.View style={[styles.absoluteFill, fullPlayerBgStyle]} animatedProps={fullPlayerBgProps} />
 
         {/* MINI PLAYER (Visible when down) */}
-        <Animated.View style={[{ position: 'absolute', top: 0, left: 16, right: 16, height: 64, zIndex: 10 }, miniPlayerStyle]} className="bg-surface rounded-2xl p-2 flex-row items-center border border-white/5 shadow-lg">
+        <Animated.View animatedProps={miniPlayerProps} style={[{ position: 'absolute', top: 0, left: 16, right: 16, height: 64, zIndex: 10 }, miniPlayerStyle]} className="bg-surface rounded-2xl p-2 flex-row items-center border border-white/5 shadow-lg">
           <TouchableOpacity 
             onPress={() => setIsExpanded(true)}
             className="flex-row items-center flex-1 h-full"
@@ -196,7 +254,7 @@ export const PlayerSheet = () => {
         </Animated.View>
 
         {/* FULL PLAYER (Visible when up) */}
-        <Animated.View style={[styles.absoluteFill, fullPlayerStyle, { zIndex: 5 }]} className="px-6 pt-12 pb-10">
+        <Animated.View animatedProps={fullPlayerProps} style={[styles.absoluteFill, fullPlayerStyle, { zIndex: 5 }]} className="px-6 pt-12 pb-10">
           {/* Header */}
           <View className="flex-row justify-between items-center mb-8">
             <TouchableOpacity onPress={() => setIsExpanded(false)}>
@@ -217,8 +275,8 @@ export const PlayerSheet = () => {
               <Text numberOfLines={1} className="text-white text-3xl font-bold mb-1">{currentTrack.title}</Text>
               <Text numberOfLines={1} className="text-gray-400 text-lg">{currentTrack.artist}</Text>
             </View>
-            <TouchableOpacity>
-              <Heart size={28} color="#FF0000" fill="#FF0000" />
+            <TouchableOpacity onPress={() => toggleFavorite(currentTrack.id)}>
+              <Heart size={28} color={isFavorite ? "#fa95ed" : "#FFFFFF"} fill={isFavorite ? "#fa95ed" : "transparent"} />
             </TouchableOpacity>
           </View>
 
@@ -227,8 +285,8 @@ export const PlayerSheet = () => {
 
           {/* Controls */}
           <View className="flex-row justify-between items-center mb-10">
-            <TouchableOpacity>
-              <Shuffle size={24} color="#FFFFFF" />
+            <TouchableOpacity onPress={toggleShuffle}>
+              <Shuffle size={24} color={isShuffle ? "#fa95ed" : "#FFFFFF"} />
             </TouchableOpacity>
             <View className="flex-row items-center gap-10">
               <TouchableOpacity onPress={() => TrackPlayer.skipToPrevious()}>
@@ -250,8 +308,13 @@ export const PlayerSheet = () => {
                 <SkipForward size={36} color="#FFFFFF" fill="#FFFFFF" />
               </TouchableOpacity>
             </View>
-            <TouchableOpacity>
-              <Repeat size={24} color="#FFFFFF" />
+            <TouchableOpacity onPress={toggleRepeat}>
+              <Repeat size={24} color={repeatMode !== 'off' ? "#fa95ed" : "#FFFFFF"} />
+              {repeatMode === 'track' && (
+                <View className="absolute -top-1 -right-1 bg-primary rounded-full w-3 h-3 items-center justify-center">
+                  <Text className="text-[8px] text-white font-bold">1</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </Animated.View>
