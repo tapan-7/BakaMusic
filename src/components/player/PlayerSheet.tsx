@@ -12,6 +12,7 @@ import Animated, {
   useAnimatedProps
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
+import colors from '../../theme/colors';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlayer } from '../../hooks/usePlayer';
 import TrackPlayer, { RepeatMode as RNRepeatMode } from 'react-native-track-player';
@@ -48,9 +49,9 @@ const FullProgressBar = () => {
         minimumValue={0}
         maximumValue={duration > 0 ? duration : 1}
         value={progress}
-        minimumTrackTintColor="#fa95ed" // primary color
-        maximumTrackTintColor="rgba(255, 255, 255, 0.1)"
-        thumbTintColor="#fa95ed"
+        minimumTrackTintColor={colors.primary}
+        maximumTrackTintColor={colors.white10}
+        thumbTintColor={colors.primary}
         onSlidingComplete={async (value) => {
           await TrackPlayer.seekTo(value);
         }}
@@ -243,9 +244,9 @@ export const PlayerSheet = () => {
             className="w-10 h-10 items-center justify-center bg-white/10 rounded-full mx-2"
           >
             {isPlaying ? (
-              <Pause size={20} color="#FFFFFF" fill="#FFFFFF" />
+              <Pause size={20} color={colors.white} fill={colors.white} />
             ) : (
-              <Play size={20} color="#FFFFFF" fill="#FFFFFF" />
+              <Play size={20} color={colors.white} fill={colors.white} />
             )}
           </TouchableOpacity>
 
@@ -258,11 +259,11 @@ export const PlayerSheet = () => {
           {/* Header */}
           <View className="flex-row justify-between items-center mb-8">
             <TouchableOpacity onPress={() => setIsExpanded(false)}>
-              <ChevronDown size={28} color="#FFFFFF" />
+              <ChevronDown size={28} color={colors.white} />
             </TouchableOpacity>
             <Text className="text-white font-bold text-lg">Now Playing</Text>
             <TouchableOpacity>
-              <MoreHorizontal size={28} color="#FFFFFF" />
+              <MoreHorizontal size={28} color={colors.white} />
             </TouchableOpacity>
           </View>
 
@@ -276,7 +277,7 @@ export const PlayerSheet = () => {
               <Text numberOfLines={1} className="text-gray-400 text-lg">{currentTrack.artist}</Text>
             </View>
             <TouchableOpacity onPress={() => toggleFavorite(currentTrack.id)}>
-              <Heart size={28} color={isFavorite ? "#fa95ed" : "#FFFFFF"} fill={isFavorite ? "#fa95ed" : "transparent"} />
+              <Heart size={28} color={isFavorite ? colors.primary : colors.white} fill={isFavorite ? colors.primary : colors.transparent} />
             </TouchableOpacity>
           </View>
 
@@ -286,11 +287,11 @@ export const PlayerSheet = () => {
           {/* Controls */}
           <View className="flex-row justify-between items-center mb-10">
             <TouchableOpacity onPress={toggleShuffle}>
-              <Shuffle size={24} color={isShuffle ? "#fa95ed" : "#FFFFFF"} />
+              <Shuffle size={24} color={isShuffle ? colors.primary : colors.white} />
             </TouchableOpacity>
             <View className="flex-row items-center gap-10">
               <TouchableOpacity onPress={() => TrackPlayer.skipToPrevious()}>
-                <SkipBack size={36} color="#FFFFFF" fill="#FFFFFF" />
+                <SkipBack size={36} color={colors.white} fill={colors.white} />
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -298,18 +299,18 @@ export const PlayerSheet = () => {
                 className="w-20 h-20 bg-primary rounded-full items-center justify-center shadow-lg"
               >
                 {isPlaying ? (
-                  <Pause size={40} color="#FFFFFF" fill="#FFFFFF" />
+                  <Pause size={40} color={colors.white} fill={colors.white} />
                 ) : (
-                  <Play size={40} color="#FFFFFF" fill="#FFFFFF" />
+                  <Play size={40} color={colors.white} fill={colors.white} />
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => TrackPlayer.skipToNext()}>
-                <SkipForward size={36} color="#FFFFFF" fill="#FFFFFF" />
+                <SkipForward size={36} color={colors.white} fill={colors.white} />
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={toggleRepeat}>
-              <Repeat size={24} color={repeatMode !== 'off' ? "#fa95ed" : "#FFFFFF"} />
+              <Repeat size={24} color={repeatMode !== 'off' ? colors.primary : colors.white} />
               {repeatMode === 'track' && (
                 <View className="absolute -top-1 -right-1 bg-primary rounded-full w-3 h-3 items-center justify-center">
                   <Text className="text-[8px] text-white font-bold">1</Text>
