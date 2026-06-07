@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
 import { ChevronDown, Heart, Shuffle, Repeat, SkipBack, SkipForward, Play, Pause, MoreHorizontal } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -20,22 +20,63 @@ const MINIMIZED_HEIGHT = 160;
 const MAX_TRANSLATE = SCREEN_HEIGHT - MINIMIZED_HEIGHT;
 const DEFAULT_ARTWORK = 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop';
 
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const MiniProgressBar = () => {
+  const progress = usePlayerStore(state => state.progress);
+  const duration = usePlayerStore(state => state.duration);
+  const progressPercentage = duration > 0 ? (progress / duration) * 100 : 0;
+  
+  return (
+    <View className="absolute bottom-0 left-2 right-2 h-1 bg-white/10 rounded-full overflow-hidden">
+      <View style={{ width: `${progressPercentage}%` }} className="h-full bg-primary" />
+    </View>
+  );
+};
+
+const FullProgressBar = () => {
+  const progress = usePlayerStore(state => state.progress);
+  const duration = usePlayerStore(state => state.duration);
+  const progressPercentage = duration > 0 ? (progress / duration) * 100 : 0;
+
+  return (
+    <View className="mb-8">
+      <View className="h-[6px] bg-white/10 rounded-full mb-3 overflow-hidden">
+        <View style={{ width: `${progressPercentage}%` }} className="h-full bg-primary" />
+      </View>
+      <View className="flex-row justify-between">
+        <Text className="text-gray-500 text-xs font-medium">{formatTime(progress)}</Text>
+        <Text className="text-gray-500 text-xs font-medium">{formatTime(duration)}</Text>
+      </View>
+    </View>
+  );
+};
+
 export const PlayerSheet = () => {
-  const { currentTrack, isPlaying, progress, duration, isExpanded, setIsExpanded } = usePlayerStore();
+  const currentTrack = usePlayerStore(state => state.currentTrack);
+  const isPlaying = usePlayerStore(state => state.isPlaying);
+  const isExpanded = usePlayerStore(state => state.isExpanded);
+  const setIsExpanded = usePlayerStore(state => state.setIsExpanded);
+  
   const { togglePlayback } = usePlayer();
   
   // translateY goes from 0 (fully expanded) to MAX_TRANSLATE (minimized)
   const translateY = useSharedValue(isExpanded ? 0 : MAX_TRANSLATE);
 
   React.useEffect(() => {
-    if (isExpanded) {
-      translateY.value = withTiming(0, { duration: 300 });
-    } else {
-      translateY.value = withTiming(MAX_TRANSLATE, { duration: 300 });
+    // Only animate if the shared value is significantly different from the target
+    // This prevents the useEffect from overriding the onEnd UI thread animation
+    const target = isExpanded ? 0 : MAX_TRANSLATE;
+    if (Math.abs(translateY.value - target) > 1) {
+      translateY.value = withTiming(target, { duration: 300 });
     }
   }, [isExpanded]);
 
-  const gesture = Gesture.Pan()
+  const gesture = useMemo(() => Gesture.Pan()
     .onUpdate((event) => {
       let nextTranslate = (isExpanded ? 0 : MAX_TRANSLATE) + event.translationY;
       if (nextTranslate < 0) nextTranslate = 0;
@@ -43,19 +84,33 @@ export const PlayerSheet = () => {
       translateY.value = nextTranslate;
     })
     .onEnd((event) => {
+      'worklet';
+      let expand = false;
+      let target = MAX_TRANSLATE;
+
       if (event.translationY > 100 || event.velocityY > 500) {
-        runOnJS(setIsExpanded)(false);
+        expand = false;
+        target = MAX_TRANSLATE;
       } else if (event.translationY < -100 || event.velocityY < -500) {
-        runOnJS(setIsExpanded)(true);
+        expand = true;
+        target = 0;
       } else {
         // Snap back to nearest state
         if (translateY.value > MAX_TRANSLATE / 2) {
-            runOnJS(setIsExpanded)(false);
+          expand = false;
+          target = MAX_TRANSLATE;
         } else {
-            runOnJS(setIsExpanded)(true);
+          expand = true;
+          target = 0;
         }
       }
-    });
+
+      // Animate immediately on the UI thread to prevent the "pause" delay
+      translateY.value = withTiming(target, { duration: 300 }, () => {
+         // Update React state in the background
+         runOnJS(setIsExpanded)(expand);
+      });
+    }), [isExpanded, setIsExpanded, translateY]);
 
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -93,14 +148,6 @@ export const PlayerSheet = () => {
   }));
 
   if (!currentTrack) return null;
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const progressPercentage = duration > 0 ? (progress / duration) * 100 : 0;
 
   return (
     <GestureDetector gesture={gesture}>
@@ -145,9 +192,7 @@ export const PlayerSheet = () => {
           </TouchableOpacity>
 
           {/* Progress Bar Mini */}
-          <View className="absolute bottom-0 left-2 right-2 h-1 bg-white/10 rounded-full overflow-hidden">
-            <View style={{ width: `${progressPercentage}%` }} className="h-full bg-primary" />
-          </View>
+          <MiniProgressBar />
         </Animated.View>
 
         {/* FULL PLAYER (Visible when up) */}
@@ -178,15 +223,7 @@ export const PlayerSheet = () => {
           </View>
 
           {/* Progress Bar Full */}
-          <View className="mb-8">
-            <View className="h-[6px] bg-white/10 rounded-full mb-3 overflow-hidden">
-              <View style={{ width: `${progressPercentage}%` }} className="h-full bg-primary" />
-            </View>
-            <View className="flex-row justify-between">
-              <Text className="text-gray-500 text-xs font-medium">{formatTime(progress)}</Text>
-              <Text className="text-gray-500 text-xs font-medium">{formatTime(duration)}</Text>
-            </View>
-          </View>
+          <FullProgressBar />
 
           {/* Controls */}
           <View className="flex-row justify-between items-center mb-10">
